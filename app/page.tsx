@@ -106,37 +106,37 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-white px-4 py-10 text-slate-900">
-      <div className="mx-auto flex w-full max-w-4xl flex-col gap-8 rounded-3xl border border-slate-200 bg-slate-50 p-6 shadow-xl md:p-10">
+    <main className="min-h-screen bg-slate-950 px-4 py-10 text-slate-100">
+      <div className="mx-auto flex w-full max-w-4xl flex-col gap-8 rounded-3xl border border-slate-800 bg-slate-900 p-6 shadow-xl md:p-10">
         <section className="space-y-3">
-          <p className="text-sm font-medium uppercase tracking-[0.35em] text-cyan-700">Fullstack Todo Dashboard</p>
+          <p className="text-sm font-medium uppercase tracking-[0.35em] text-cyan-300">Fullstack Todo Dashboard</p>
           <h1 className="text-3xl font-semibold tracking-tight md:text-5xl">Manage tasks with clear action states</h1>
-          <p className="max-w-2xl text-sm leading-6 text-slate-600 md:text-base">
+          <p className="max-w-2xl text-sm leading-6 text-slate-300 md:text-base">
             Track all tasks with standard CRUD action colors: Create (green), Update (blue), Complete (indigo), and Delete (red).
           </p>
         </section>
 
         <section className="grid gap-3 sm:grid-cols-3">
-          <div className="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3">
-            <p className="text-xs uppercase tracking-wide text-emerald-700">Total tasks</p>
-            <p className="mt-1 text-2xl font-semibold text-emerald-800">{todos.length}</p>
+          <div className="rounded-2xl border border-emerald-400/30 bg-emerald-500/15 px-4 py-3">
+            <p className="text-xs uppercase tracking-wide text-emerald-200">Total tasks</p>
+            <p className="mt-1 text-2xl font-semibold text-emerald-100">{todos.length}</p>
           </div>
-          <div className="rounded-2xl border border-indigo-400/30 bg-indigo-500/10 px-4 py-3">
-            <p className="text-xs uppercase tracking-wide text-indigo-700">Completed</p>
-            <p className="mt-1 text-2xl font-semibold text-indigo-800">{completedCount}</p>
+          <div className="rounded-2xl border border-indigo-400/30 bg-indigo-500/15 px-4 py-3">
+            <p className="text-xs uppercase tracking-wide text-indigo-200">Completed</p>
+            <p className="mt-1 text-2xl font-semibold text-indigo-100">{completedCount}</p>
           </div>
-          <div className="rounded-2xl border border-amber-400/30 bg-amber-500/10 px-4 py-3">
-            <p className="text-xs uppercase tracking-wide text-amber-700">Pending</p>
-            <p className="mt-1 text-2xl font-semibold text-amber-800">{pendingCount}</p>
+          <div className="rounded-2xl border border-amber-400/30 bg-amber-500/15 px-4 py-3">
+            <p className="text-xs uppercase tracking-wide text-amber-200">Pending</p>
+            <p className="mt-1 text-2xl font-semibold text-amber-100">{pendingCount}</p>
           </div>
         </section>
 
-        <section className="rounded-2xl border border-slate-200 bg-slate-100 p-4">
-          <div className="mb-2 flex items-center justify-between text-sm text-slate-600">
+        <section className="rounded-2xl border border-slate-700 bg-slate-800/60 p-4">
+          <div className="mb-2 flex items-center justify-between text-sm text-slate-300">
             <span>Completion progress</span>
             <span>{completionRate}%</span>
           </div>
-          <div className="h-2 overflow-hidden rounded-full bg-slate-200">
+          <div className="h-2 overflow-hidden rounded-full bg-slate-700">
             <div
               className="h-full rounded-full bg-indigo-400 transition-all"
               style={{ width: `${completionRate}%` }}
@@ -144,13 +144,13 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="grid gap-4 rounded-2xl border border-slate-200 bg-slate-100 p-4 md:grid-cols-[1fr_auto] md:p-5">
+        <section className="grid gap-4 rounded-2xl border border-slate-700 bg-slate-800/60 p-4 md:grid-cols-[1fr_auto] md:p-5">
           <form className="flex flex-col gap-3 md:flex-row" onSubmit={handleSubmit}>
             <input
               value={title}
               onChange={(event) => setTitle(event.target.value)}
               placeholder={editingId ? "Update selected todo..." : "Write a new todo..."}
-              className="h-12 flex-1 rounded-xl border border-slate-300 bg-slate-50 px-4 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-cyan-500"
+              className="h-12 flex-1 rounded-xl border border-slate-600 bg-slate-900 px-4 text-slate-100 outline-none transition placeholder:text-slate-400 focus:border-cyan-400"
             />
             <div className="flex gap-2">
               <button
@@ -165,7 +165,7 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={cancelEdit}
-                  className="inline-flex h-12 items-center gap-2 rounded-xl border border-slate-300 px-5 font-semibold text-slate-700 transition hover:bg-slate-100"
+                  className="inline-flex h-12 items-center gap-2 rounded-xl border border-slate-600 px-5 font-semibold text-slate-200 transition hover:bg-slate-700"
                 >
                   <X size={16} />
                   Cancel
@@ -173,24 +173,24 @@ export default function Home() {
               ) : null}
             </div>
           </form>
-          <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600 md:min-w-64">
-            <p className="font-semibold text-slate-800">Action legend</p>
-            <p className="mt-1">Create: <span className="text-emerald-700">Green</span> • Update: <span className="text-blue-700">Blue</span></p>
-            <p>Complete: <span className="text-indigo-700">Indigo</span> • Delete: <span className="text-rose-700">Red</span></p>
+          <div className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-xs text-slate-300 md:min-w-64">
+            <p className="font-semibold text-slate-100">Action legend</p>
+            <p className="mt-1">Create: <span className="text-emerald-300">Green</span> • Update: <span className="text-blue-300">Blue</span></p>
+            <p>Complete: <span className="text-indigo-300">Indigo</span> • Delete: <span className="text-rose-300">Red</span></p>
           </div>
         </section>
 
         {error ? (
-          <p className="rounded-xl border border-rose-400/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-700">{error}</p>
+          <p className="rounded-xl border border-rose-400/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">{error}</p>
         ) : null}
 
         <section className="space-y-3">
           {loading ? (
-            <div className="rounded-2xl border border-slate-200 bg-slate-100 px-6 py-10 text-center text-slate-600">
+            <div className="rounded-2xl border border-slate-700 bg-slate-800/60 px-6 py-10 text-center text-slate-300">
               Loading todos...
             </div>
           ) : todos.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-100 px-6 py-10 text-center text-slate-600">
+            <div className="rounded-2xl border border-dashed border-slate-700 bg-slate-800/60 px-6 py-10 text-center text-slate-300">
               No todos yet. Add your first one above.
             </div>
           ) : (
@@ -198,19 +198,19 @@ export default function Home() {
               {todos.map((todo) => (
                 <li
                   key={todo.id}
-                  className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-slate-100 p-4 md:flex-row md:items-center md:justify-between"
+                  className="flex flex-col gap-4 rounded-2xl border border-slate-700 bg-slate-800/60 p-4 md:flex-row md:items-center md:justify-between"
                 >
                   <div className="flex items-start gap-3">
                     <button
                       type="button"
                       onClick={() => void handleToggle(todo)}
-                      className={`mt-1 inline-flex h-6 w-6 items-center justify-center rounded-full border transition ${todo.completed ? "border-indigo-500 bg-indigo-500 text-white" : "border-slate-400 text-slate-400 hover:border-indigo-300 hover:text-indigo-500"}`}
+                      className={`mt-1 inline-flex h-6 w-6 items-center justify-center rounded-full border transition ${todo.completed ? "border-indigo-500 bg-indigo-500 text-white" : "border-slate-500 text-slate-400 hover:border-indigo-300 hover:text-indigo-300"}`}
                       aria-label={todo.completed ? "Mark todo as incomplete" : "Mark todo as complete"}
                     >
                       <Check size={14} strokeWidth={3} />
                     </button>
                     <div>
-                      <p className={`text-base font-medium ${todo.completed ? "text-slate-400 line-through" : "text-slate-900"}`}>
+                      <p className={`text-base font-medium ${todo.completed ? "text-slate-400 line-through" : "text-slate-100"}`}>
                         {todo.title}
                       </p>
                       <p className="text-xs text-slate-500">Created {new Date(todo.createdAt).toLocaleString()}</p>
