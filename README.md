@@ -89,13 +89,15 @@ Services:
 
 Default local credentials used by backend:
 
-- username: `root`
-- password: `rootpassword`
-- db: `todo_app`
+- username: set via `MONGO_ROOT_USERNAME`
+- password: set via `MONGO_ROOT_PASSWORD`
+- db: set via `MONGO_DATABASE`
 
 Backend connection URI example:
 
-`mongodb://root:rootpassword@localhost:27017/todo_app?authSource=admin`
+`mongodb://<username>:<password>@localhost:27017/<database>?authSource=admin`
+
+> ⚠️ Do not commit real credentials. Keep secrets only in local `.env` files or a secret manager.
 
 ---
 

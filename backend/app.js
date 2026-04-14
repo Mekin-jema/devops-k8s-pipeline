@@ -7,8 +7,12 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const MONGODB_URI =
-    process.env.MONGODB_URI || 'mongodb://root:rootpassword@localhost:27017/todo_app?authSource=admin';
+const MONGODB_URI = process.env.MONGODB_URI;
+
+if (!MONGODB_URI) {
+    console.error('MONGODB_URI is not set. Add it in backend/.env');
+    process.exit(1);
+}
 
 app.use(cors({ origin: process.env.CLIENT_ORIGIN || 'http://localhost:3000' }));
 app.use(express.json());
