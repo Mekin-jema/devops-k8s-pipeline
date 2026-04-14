@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Check, Pencil, Plus, Trash2, X } from "lucide-react";
 
 type Todo = {
   id: string;
@@ -130,7 +131,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-4">
+        <section className="rounded-2xl border border-slate-200 bg-slate-100 p-4">
           <div className="mb-2 flex items-center justify-between text-sm text-slate-600">
             <span>Completion progress</span>
             <span>{completionRate}%</span>
@@ -143,28 +144,30 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-4 md:grid-cols-[1fr_auto] md:p-5">
+        <section className="grid gap-4 rounded-2xl border border-slate-200 bg-slate-100 p-4 md:grid-cols-[1fr_auto] md:p-5">
           <form className="flex flex-col gap-3 md:flex-row" onSubmit={handleSubmit}>
             <input
               value={title}
               onChange={(event) => setTitle(event.target.value)}
               placeholder={editingId ? "Update selected todo..." : "Write a new todo..."}
-              className="h-12 flex-1 rounded-xl border border-slate-300 bg-white px-4 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-cyan-500"
+              className="h-12 flex-1 rounded-xl border border-slate-300 bg-slate-50 px-4 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-cyan-500"
             />
             <div className="flex gap-2">
               <button
                 type="submit"
                 disabled={saving}
-                className={`h-12 rounded-xl px-5 font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-70 ${editingId ? "bg-blue-600 hover:bg-blue-500" : "bg-emerald-600 hover:bg-emerald-500"}`}
+                className={`inline-flex h-12 items-center gap-2 rounded-xl px-5 font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-70 ${editingId ? "bg-blue-600 hover:bg-blue-500" : "bg-emerald-600 hover:bg-emerald-500"}`}
               >
+                {editingId ? <Pencil size={16} /> : <Plus size={16} />}
                 {editingId ? "Update" : "Create"}
               </button>
               {editingId ? (
                 <button
                   type="button"
                   onClick={cancelEdit}
-                  className="h-12 rounded-xl border border-slate-300 px-5 font-semibold text-slate-700 transition hover:bg-slate-100"
+                  className="inline-flex h-12 items-center gap-2 rounded-xl border border-slate-300 px-5 font-semibold text-slate-700 transition hover:bg-slate-100"
                 >
+                  <X size={16} />
                   Cancel
                 </button>
               ) : null}
@@ -183,11 +186,11 @@ export default function Home() {
 
         <section className="space-y-3">
           {loading ? (
-            <div className="rounded-2xl border border-slate-200 bg-white px-6 py-10 text-center text-slate-600">
+            <div className="rounded-2xl border border-slate-200 bg-slate-100 px-6 py-10 text-center text-slate-600">
               Loading todos...
             </div>
           ) : todos.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-10 text-center text-slate-600">
+            <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-100 px-6 py-10 text-center text-slate-600">
               No todos yet. Add your first one above.
             </div>
           ) : (
@@ -195,16 +198,16 @@ export default function Home() {
               {todos.map((todo) => (
                 <li
                   key={todo.id}
-                  className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-4 md:flex-row md:items-center md:justify-between"
+                  className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-slate-100 p-4 md:flex-row md:items-center md:justify-between"
                 >
                   <div className="flex items-start gap-3">
                     <button
                       type="button"
                       onClick={() => void handleToggle(todo)}
-                      className={`mt-1 flex h-5 w-5 items-center justify-center rounded-full border transition ${todo.completed ? "border-indigo-400 bg-indigo-400" : "border-slate-400 hover:border-indigo-300"}`}
+                      className={`mt-1 inline-flex h-6 w-6 items-center justify-center rounded-full border transition ${todo.completed ? "border-indigo-500 bg-indigo-500 text-white" : "border-slate-400 text-slate-400 hover:border-indigo-300 hover:text-indigo-500"}`}
                       aria-label={todo.completed ? "Mark todo as incomplete" : "Mark todo as complete"}
                     >
-                      {todo.completed ? <span className="h-2 w-2 rounded-full bg-slate-950" /> : null}
+                      <Check size={14} strokeWidth={3} />
                     </button>
                     <div>
                       <p className={`text-base font-medium ${todo.completed ? "text-slate-400 line-through" : "text-slate-900"}`}>
@@ -221,15 +224,17 @@ export default function Home() {
                     <button
                       type="button"
                       onClick={() => startEdit(todo)}
-                      className="rounded-lg border border-blue-400/30 bg-blue-500/10 px-4 py-2 text-sm text-blue-700 transition hover:bg-blue-500/20"
+                      className="inline-flex items-center gap-2 rounded-lg border border-blue-400/30 bg-blue-500/10 px-4 py-2 text-sm text-blue-700 transition hover:bg-blue-500/20"
                     >
+                      <Pencil size={14} />
                       Update
                     </button>
                     <button
                       type="button"
                       onClick={() => void handleDelete(todo.id)}
-                      className="rounded-lg border border-rose-400/30 bg-rose-500/10 px-4 py-2 text-sm text-rose-700 transition hover:bg-rose-500/20"
+                      className="inline-flex items-center gap-2 rounded-lg border border-rose-400/30 bg-rose-500/10 px-4 py-2 text-sm text-rose-700 transition hover:bg-rose-500/20"
                     >
+                      <Trash2 size={14} />
                       Delete
                     </button>
                   </div>
