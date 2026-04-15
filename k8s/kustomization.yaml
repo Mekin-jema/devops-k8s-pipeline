@@ -1,0 +1,16 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: todo-app
+resources:
+  - namespace/todo-namespace.yaml
+  - configmaps/backend-configmap.yaml
+  - secrets/mongodb-secret.example.yaml
+  - volumes/mongodb-pv.yaml
+  - volumes/mongodb-pvc.yaml
+  - deployments/mongodb-deployment.yaml
+  - deployments/backend-deployment.yaml
+  - deployments/frontend-deployment.yaml
+  - services/mongodb-service.yaml
+  - services/backend-service.yaml
+  - services/frontend-service.yaml
+  - ingress/app-ingress.yaml

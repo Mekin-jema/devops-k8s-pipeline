@@ -1,0 +1,8 @@
+# Legacy file retained for compatibility.
+# Use manifests under ./services instead:
+# - services/frontend-service.yaml
+# - services/backend-service.yaml
+# - services/mongodb-service.yaml
+  selector:
+
+    app: todo-app  # This selector name comes from the deployment metadata lable's name
