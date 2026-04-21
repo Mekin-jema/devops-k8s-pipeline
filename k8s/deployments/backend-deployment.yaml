@@ -15,7 +15,8 @@ spec:
     spec:
       containers:
         - name: backend
-          image: mekin2024/todo-backend:v1
+          image: mekin2024/todo-backend:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 5000
           resources:

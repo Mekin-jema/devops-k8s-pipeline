@@ -2,13 +2,14 @@
 
 This folder contains Dockerfiles for both services.
 
-## Build commands (from repository root)
+## Build commands (from `docker/`)
 
-- Frontend image:
-  - `docker build -f docker/frontend.Dockerfile -t mekin2024/todo-frontend:latest .`
+Build both images from the `docker/` folder using the app folders as the build contexts:
 
-- Backend image:
-  - `docker build -f docker/backend.Dockerfile -t mekin2024/todo-backend:latest .`
+```bash
+docker build -f frontend.Dockerfile -t mekin2024/todo-frontend:latest ../frontend
+docker build -f backend.Dockerfile -t mekin2024/todo-backend:latest ../backend
+```
 
 ## Run locally (optional)
 

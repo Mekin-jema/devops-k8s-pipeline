@@ -102,6 +102,10 @@ Or manually:
 echo "http://$(minikube ip):30080"
 ```
 
+The frontend calls the backend through its own same-origin API proxy at `/api/...`, so the browser does not need to reach the cluster-internal backend service directly.
+
+If you change the frontend host or add an ingress later, the UI should still work as long as the frontend and `/api` stay on the same public address.
+
 ---
 
 ## 8) Troubleshooting logs
@@ -253,5 +257,39 @@ kubectl describe ingress todo-app-ingress -n todo-app
 # If using Minikube ingress addon
 minikube addons enable ingress
 ```
+
+### K) 3 ways to use ClusterIP services
+
+If `backend-service` is `ClusterIP`, you can still access it from frontend-related flow in these 3 ways:
+
+1) Use Minikube service URL
+
+```bash
+kubectl get svc backend-service -n todo-app
+minikube service backend-service -n todo-app --url
+```
+
+Use the returned URL as your frontend API base URL.
+
+2) Use Kubernetes injected env vars inside the frontend Pod
+
+Kubernetes provides env vars such as:
+
+- `BACKEND_SERVICE_SERVICE_HOST`
+- `BACKEND_SERVICE_SERVICE_PORT`
+
+Example internal URL built in container runtime: `http://$BACKEND_SERVICE_SERVICE_HOST:$BACKEND_SERVICE_SERVICE_PORT`
+
+3) Use service DNS name directly
+
+From workloads inside the same namespace:
+
+- `http://backend-service:5000`
+
+Or full DNS:
+
+- `http://backend-service.todo-app.svc.cluster.local:5000`
+
+For browser-side code, prefer an API route/proxy or a public URL; direct ClusterIP/DNS is only reachable from inside the cluster network.
 
 

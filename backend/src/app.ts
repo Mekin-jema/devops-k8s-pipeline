@@ -55,7 +55,7 @@ app.get('/api/health', (_req: Request, res: Response) => {
   res.json({ ok: true });
 });
 
-app.get('/api/todos', async (_req: Request, res: Response) => {
+const getTodos = async (_req: Request, res: Response) => {
   try {
     const todos = await Todo.find().sort({ createdAt: -1 });
     res.json(todos);
@@ -63,9 +63,9 @@ app.get('/api/todos', async (_req: Request, res: Response) => {
     console.error('Failed to fetch todos:', error);
     res.status(500).json({ message: 'Failed to fetch todos.' });
   }
-});
+};
 
-app.post('/api/todos', async (req: Request, res: Response) => {
+const createTodo = async (req: Request, res: Response) => {
   const { title } = req.body as { title?: string };
 
   if (!title || !title.trim()) {
@@ -79,9 +79,9 @@ app.post('/api/todos', async (req: Request, res: Response) => {
     console.error('Failed to create todo:', error);
     res.status(500).json({ message: 'Failed to create todo.' });
   }
-});
+};
 
-app.put('/api/todos/:id', async (req: Request, res: Response) => {
+const updateTodo = async (req: Request, res: Response) => {
   const { id } = req.params;
   const { title, completed } = req.body as {
     title?: string;
@@ -116,9 +116,9 @@ app.put('/api/todos/:id', async (req: Request, res: Response) => {
     console.error('Failed to update todo:', error);
     res.status(500).json({ message: 'Failed to update todo.' });
   }
-});
+};
 
-app.delete('/api/todos/:id', async (req: Request, res: Response) => {
+const deleteTodo = async (req: Request, res: Response) => {
   const { id } = req.params;
 
   try {
@@ -137,7 +137,19 @@ app.delete('/api/todos/:id', async (req: Request, res: Response) => {
     console.error('Failed to delete todo:', error);
     res.status(500).json({ message: 'Failed to delete todo.' });
   }
-});
+};
+
+app.get('/api/todos', getTodos);
+app.get('/todos', getTodos);
+
+app.post('/api/todos', createTodo);
+app.post('/todos', createTodo);
+
+app.put('/api/todos/:id', updateTodo);
+app.put('/todos/:id', updateTodo);
+
+app.delete('/api/todos/:id', deleteTodo);
+app.delete('/todos/:id', deleteTodo);
 
 async function startServer(): Promise<void> {
   try {

@@ -15,7 +15,8 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: mekin2024/todo-frontend:v1
+          image: mekin2024/todo-frontend:latest
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000
           resources:
@@ -26,5 +27,5 @@ spec:
               cpu: "500m"
               memory: "512Mi"
           env:
-            - name: NEXT_PUBLIC_API_URL
+            - name: BACKEND_INTERNAL_URL
               value: http://backend-service:5000

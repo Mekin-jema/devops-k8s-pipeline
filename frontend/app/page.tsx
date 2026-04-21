@@ -10,7 +10,7 @@ type Todo = {
   createdAt: string;
 };
 
-const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const todosEndpoint = "/api/todos";
 
 export default function Home() {
   const [todos, setTodos] = useState<Todo[]>([]);
@@ -27,7 +27,7 @@ export default function Home() {
   async function loadTodos() {
     try {
       setError(null);
-      const response = await fetch(`${apiBaseUrl}/api/todos`);
+      const response = await fetch(todosEndpoint);
       if (!response.ok) {
         throw new Error("Unable to load todos.");
       }
@@ -54,7 +54,7 @@ export default function Home() {
     setError(null);
 
     try {
-      const response = await fetch(`${apiBaseUrl}/api/todos${editingId ? `/${editingId}` : ""}`, {
+      const response = await fetch(`${todosEndpoint}${editingId ? `/${editingId}` : ""}`, {
         method: editingId ? "PUT" : "POST",
         headers: {
           "Content-Type": "application/json",
@@ -78,7 +78,7 @@ export default function Home() {
   }
 
   async function handleToggle(todo: Todo) {
-    await fetch(`${apiBaseUrl}/api/todos/${todo.id}`, {
+    await fetch(`${todosEndpoint}/${todo.id}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -89,7 +89,7 @@ export default function Home() {
   }
 
   async function handleDelete(id: string) {
-    await fetch(`${apiBaseUrl}/api/todos/${id}`, {
+    await fetch(`${todosEndpoint}/${id}`, {
       method: "DELETE",
     });
     await loadTodos();
