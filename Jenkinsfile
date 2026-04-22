@@ -1,0 +1,105 @@
+pipeline {
+  agent any
+
+  environment {
+    REGISTRY = 'docker.io'
+    DOCKERHUB_NAMESPACE = 'mekin2024'
+    BACKEND_IMAGE = "${REGISTRY}/${DOCKERHUB_NAMESPACE}/todo-backend"
+    FRONTEND_IMAGE = "${REGISTRY}/${DOCKERHUB_NAMESPACE}/todo-frontend"
+    IMAGE_TAG = 'local'
+    K8S_NAMESPACE = 'todo-app'
+  }
+
+  stages {
+    stage('Checkout') {
+      steps {
+        checkout scm
+        script {
+          env.IMAGE_TAG = sh(returnStdout: true, script: 'git rev-parse --short=7 HEAD').trim()
+        }
+      }
+    }
+
+    stage('Install') {
+      steps {
+        sh 'npm install --prefix frontend'
+        sh 'npm install --prefix backend'
+      }
+    }
+
+    stage('Validate') {
+      parallel {
+        stage('Frontend lint') {
+          steps {
+            sh 'npm run lint --prefix frontend'
+          }
+        }
+        stage('Backend build') {
+          steps {
+            sh 'npm run build --prefix backend'
+          }
+        }
+        stage('Frontend build') {
+          steps {
+            sh 'npm run build --prefix frontend'
+          }
+        }
+      }
+    }
+
+    stage('Build Images') {
+      steps {
+        sh "docker build -f docker/backend.Dockerfile -t ${BACKEND_IMAGE}:${IMAGE_TAG} ."
+        sh "docker build -f docker/frontend.Dockerfile -t ${FRONTEND_IMAGE}:${IMAGE_TAG} ."
+      }
+    }
+
+    stage('Push Images') {
+      when {
+        anyOf {
+          branch 'main'
+          branch 'master'
+        }
+      }
+      steps {
+        withCredentials([
+          usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_TOKEN')
+        ]) {
+          sh 'echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USER" --password-stdin'
+          sh "docker push ${BACKEND_IMAGE}:${IMAGE_TAG}"
+          sh "docker push ${FRONTEND_IMAGE}:${IMAGE_TAG}"
+          sh 'docker logout'
+        }
+      }
+    }
+
+    stage('Deploy to Kubernetes') {
+      when {
+        anyOf {
+          branch 'main'
+          branch 'master'
+        }
+      }
+      steps {
+        withCredentials([
+          file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG_FILE')
+        ]) {
+          sh '''
+            export KUBECONFIG="$KUBECONFIG_FILE"
+            kubectl apply -k k8s/
+            kubectl set image deployment/backend backend=${BACKEND_IMAGE}:${IMAGE_TAG} -n ${K8S_NAMESPACE}
+            kubectl set image deployment/frontend frontend=${FRONTEND_IMAGE}:${IMAGE_TAG} -n ${K8S_NAMESPACE}
+            kubectl rollout status deployment/backend -n ${K8S_NAMESPACE}
+            kubectl rollout status deployment/frontend -n ${K8S_NAMESPACE}
+          '''
+        }
+      }
+    }
+  }
+
+  post {
+    always {
+      cleanWs()
+    }
+  }
+}
