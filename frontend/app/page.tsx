@@ -43,7 +43,13 @@ export default function Home() {
   }
 
   useEffect(() => {
-    void loadTodos();
+    const initialLoadTimer = setTimeout(() => {
+      void loadTodos();
+    }, 0);
+
+    return () => {
+      clearTimeout(initialLoadTimer);
+    };
   }, []);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
