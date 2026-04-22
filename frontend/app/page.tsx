@@ -24,9 +24,11 @@ export default function Home() {
   const pendingCount = todos.length - completedCount;
   const completionRate = todos.length ? Math.round((completedCount / todos.length) * 100) : 0;
 
-  async function loadTodos() {
+  async function loadTodos(options?: { clearError?: boolean }) {
     try {
-      setError(null);
+      if (options?.clearError) {
+        setError(null);
+      }
       const response = await fetch(todosEndpoint);
       if (!response.ok) {
         throw new Error("Unable to load todos.");
@@ -67,7 +69,7 @@ export default function Home() {
         throw new Error(payload?.message || "Failed to save todo.");
       }
 
-      await loadTodos();
+      await loadTodos({ clearError: true });
       setTitle("");
       setEditingId(null);
     } catch (saveError) {
@@ -85,14 +87,14 @@ export default function Home() {
       },
       body: JSON.stringify({ completed: !todo.completed }),
     });
-    await loadTodos();
+    await loadTodos({ clearError: true });
   }
 
   async function handleDelete(id: string) {
     await fetch(`${todosEndpoint}/${id}`, {
       method: "DELETE",
     });
-    await loadTodos();
+    await loadTodos({ clearError: true });
   }
 
   function startEdit(todo: Todo) {
