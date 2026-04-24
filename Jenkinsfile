@@ -20,6 +20,12 @@ pipeline {
         checkout scm
         script {
           env.IMAGE_TAG = sh(returnStdout: true, script: 'git rev-parse --short=7 HEAD').trim()
+          env.EFFECTIVE_BRANCH = (env.BRANCH_NAME ?: env.GIT_BRANCH ?: sh(returnStdout: true, script: 'git rev-parse --abbrev-ref HEAD').trim())
+          env.RELEASE_BRANCH = ((env.EFFECTIVE_BRANCH == 'main') ||
+            (env.EFFECTIVE_BRANCH == 'master') ||
+            env.EFFECTIVE_BRANCH.endsWith('/main') ||
+            env.EFFECTIVE_BRANCH.endsWith('/master')).toString()
+          echo "Resolved branch='${env.EFFECTIVE_BRANCH}', releaseBranch=${env.RELEASE_BRANCH}"
         }
       }
     }
@@ -34,7 +40,7 @@ pipeline {
             }
           }
 
-          if (env.BRANCH_NAME in ['main', 'master']) {
+          if (env.RELEASE_BRANCH == 'true') {
             ['docker', 'kubectl'].each { tool ->
               if (sh(script: "command -v ${tool} >/dev/null 2>&1", returnStatus: true) != 0) {
                 missing << tool
@@ -78,10 +84,7 @@ pipeline {
 
     stage('Build Images') {
       when {
-        anyOf {
-          branch 'main'
-          branch 'master'
-        }
+        expression { env.RELEASE_BRANCH == 'true' }
       }
       steps {
         sh "docker build -f docker/backend.Dockerfile -t ${BACKEND_IMAGE}:${IMAGE_TAG} ."
@@ -91,10 +94,7 @@ pipeline {
 
     stage('Push Images') {
       when {
-        anyOf {
-          branch 'main'
-          branch 'master'
-        }
+        expression { env.RELEASE_BRANCH == 'true' }
       }
       steps {
         withCredentials([
@@ -110,10 +110,7 @@ pipeline {
 
     stage('Deploy to Kubernetes') {
       when {
-        anyOf {
-          branch 'main'
-          branch 'master'
-        }
+        expression { env.RELEASE_BRANCH == 'true' }
       }
       steps {
         withCredentials([
