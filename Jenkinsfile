@@ -44,6 +44,27 @@ pipeline {
       }
     }
 
+    stage('Agent Debug Info') {
+      steps {
+        script {
+          echo "NODE_NAME=${env.NODE_NAME}"
+          echo "NODE_LABELS=${env.NODE_LABELS}"
+          echo "BRANCH_NAME=${env.BRANCH_NAME}"
+          echo "GIT_BRANCH=${env.GIT_BRANCH}"
+          echo "EFFECTIVE_BRANCH=${env.EFFECTIVE_BRANCH}"
+          echo "RELEASE_BRANCH=${env.RELEASE_BRANCH}"
+        }
+        sh '''
+          set +e
+          echo "PATH=$PATH"
+          for cmd in git node npm docker kubectl; do
+            printf "%s -> " "$cmd"
+            command -v "$cmd" || true
+          done
+        '''
+      }
+    }
+
     stage('Preflight') {
       steps {
         script {
