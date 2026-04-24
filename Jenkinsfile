@@ -1,5 +1,10 @@
 pipeline {
-  agent { label 'docker-k8s' }
+  agent {
+    kubernetes {
+      inheritFrom 'docker-k8s'
+      defaultContainer 'jnlp'
+    }
+  }
 
   options {
     skipDefaultCheckout(true)
