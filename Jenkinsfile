@@ -1,7 +1,10 @@
 pipeline {
-  agent {
-     any
+agent {
+  docker {
+    image 'mekin2024/jenkins-agent:latest'
+    args '-v /var/run/docker.sock:/var/run/docker.sock -u root'
   }
+}
 
   options {
     skipDefaultCheckout(true)
