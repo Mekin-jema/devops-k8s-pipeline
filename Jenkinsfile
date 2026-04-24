@@ -12,6 +12,7 @@ pipeline {
     FRONTEND_IMAGE = "${REGISTRY}/${DOCKERHUB_NAMESPACE}/todo-frontend"
     IMAGE_TAG = 'local'
     K8S_NAMESPACE = 'todo-app'
+    RELEASE_READY = 'false'
   }
 
   stages {
@@ -75,17 +76,26 @@ pipeline {
             }
           }
 
+          if (!missing.isEmpty()) {
+            error("""Missing required tools on Jenkins agent: ${missing.join(', ')}\nInstall these tools on the selected Jenkins node before running this pipeline.""")
+          }
+
+          env.RELEASE_READY = 'true'
           if (env.RELEASE_BRANCH == 'true') {
+            def missingReleaseTools = []
             ['docker', 'kubectl'].each { tool ->
               if (sh(script: "command -v ${tool} >/dev/null 2>&1", returnStatus: true) != 0) {
-                missing << tool
+                missingReleaseTools << tool
               }
+            }
+
+            if (!missingReleaseTools.isEmpty()) {
+              env.RELEASE_READY = 'false'
+              echo "Release stages will be skipped because required release tools are missing: ${missingReleaseTools.join(', ')}"
             }
           }
 
-          if (!missing.isEmpty()) {
-            error("""Missing required tools on Jenkins agent: ${missing.join(', ')}\nUse the custom Jenkins image from docker/jenkins.Dockerfile (or a node with equivalent tooling) and ensure Docker daemon access is configured (for example by mounting /var/run/docker.sock).""")
-          }
+          echo "Release gating: releaseBranch=${env.RELEASE_BRANCH}, releaseReady=${env.RELEASE_READY}"
         }
       }
     }
@@ -119,7 +129,7 @@ pipeline {
 
     stage('Build Images') {
       when {
-        expression { env.RELEASE_BRANCH == 'true' }
+        expression { env.RELEASE_BRANCH == 'true' && env.RELEASE_READY == 'true' }
       }
       steps {
         sh "docker build -f docker/backend.Dockerfile -t ${BACKEND_IMAGE}:${IMAGE_TAG} ."
@@ -129,7 +139,7 @@ pipeline {
 
     stage('Push Images') {
       when {
-        expression { env.RELEASE_BRANCH == 'true' }
+        expression { env.RELEASE_BRANCH == 'true' && env.RELEASE_READY == 'true' }
       }
       steps {
         withCredentials([
@@ -145,7 +155,7 @@ pipeline {
 
     stage('Deploy to Kubernetes') {
       when {
-        expression { env.RELEASE_BRANCH == 'true' }
+        expression { env.RELEASE_BRANCH == 'true' && env.RELEASE_READY == 'true' }
       }
       steps {
         withCredentials([
