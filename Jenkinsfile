@@ -1,5 +1,5 @@
 pipeline {
-  agent any
+  agent { label 'docker-k8s' }
 
   options {
     skipDefaultCheckout(true)
