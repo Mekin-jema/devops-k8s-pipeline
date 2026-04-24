@@ -20,12 +20,26 @@ pipeline {
         checkout scm
         script {
           env.IMAGE_TAG = sh(returnStdout: true, script: 'git rev-parse --short=7 HEAD').trim()
-          env.EFFECTIVE_BRANCH = (env.BRANCH_NAME ?: env.GIT_BRANCH ?: sh(returnStdout: true, script: 'git rev-parse --abbrev-ref HEAD').trim())
-          env.RELEASE_BRANCH = ((env.EFFECTIVE_BRANCH == 'main') ||
-            (env.EFFECTIVE_BRANCH == 'master') ||
-            env.EFFECTIVE_BRANCH.endsWith('/main') ||
-            env.EFFECTIVE_BRANCH.endsWith('/master')).toString()
-          echo "Resolved branch='${env.EFFECTIVE_BRANCH}', releaseBranch=${env.RELEASE_BRANCH}"
+
+          def branchCandidate = (env.BRANCH_NAME ?: env.GIT_BRANCH ?: env.CHANGE_BRANCH ?: '').trim()
+          if (!branchCandidate || branchCandidate == 'HEAD') {
+            branchCandidate = sh(
+              returnStdout: true,
+              script: "git for-each-ref --format='%(refname:short)' --points-at HEAD refs/remotes/origin | head -n1"
+            ).trim()
+          }
+          if (!branchCandidate || branchCandidate == 'HEAD') {
+            branchCandidate = sh(returnStdout: true, script: 'git rev-parse --abbrev-ref HEAD').trim()
+          }
+
+          env.EFFECTIVE_BRANCH = branchCandidate
+          def normalizedBranch = branchCandidate
+            .replaceFirst('^refs/heads/', '')
+            .replaceFirst('^refs/remotes/', '')
+            .replaceFirst('^origin/', '')
+
+          env.RELEASE_BRANCH = (normalizedBranch in ['main', 'master']).toString()
+          echo "Resolved branch='${env.EFFECTIVE_BRANCH}', normalized='${normalizedBranch}', releaseBranch=${env.RELEASE_BRANCH}"
         }
       }
     }
