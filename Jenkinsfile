@@ -1,6 +1,10 @@
 pipeline {
   agent any
 
+  parameters {
+    booleanParam(name: 'FORCE_RELEASE_STAGES', defaultValue: false, description: 'Run Build/Push/Deploy stages even if release tools are missing in preflight checks')
+  }
+
   options {
     skipDefaultCheckout(true)
   }
@@ -90,12 +94,16 @@ pipeline {
             }
 
             if (!missingReleaseTools.isEmpty()) {
-              env.RELEASE_READY = 'false'
-              echo "Release stages will be skipped because required release tools are missing: ${missingReleaseTools.join(', ')}"
+              if (params.FORCE_RELEASE_STAGES) {
+                echo "FORCE_RELEASE_STAGES=true: continuing even though release tools are missing: ${missingReleaseTools.join(', ')}"
+              } else {
+                env.RELEASE_READY = 'false'
+                echo "Release stages will be skipped because required release tools are missing: ${missingReleaseTools.join(', ')}"
+              }
             }
           }
 
-          echo "Release gating: releaseBranch=${env.RELEASE_BRANCH}, releaseReady=${env.RELEASE_READY}"
+          echo "Release gating: releaseBranch=${env.RELEASE_BRANCH}, releaseReady=${env.RELEASE_READY}, forceReleaseStages=${params.FORCE_RELEASE_STAGES}"
         }
       }
     }
@@ -129,7 +137,7 @@ pipeline {
 
     stage('Build Images') {
       when {
-        expression { env.RELEASE_BRANCH == 'true' && env.RELEASE_READY == 'true' }
+        expression { env.RELEASE_BRANCH == 'true' && (env.RELEASE_READY == 'true' || params.FORCE_RELEASE_STAGES) }
       }
       steps {
         sh "docker build -f docker/backend.Dockerfile -t ${BACKEND_IMAGE}:${IMAGE_TAG} ."
@@ -139,7 +147,7 @@ pipeline {
 
     stage('Push Images') {
       when {
-        expression { env.RELEASE_BRANCH == 'true' && env.RELEASE_READY == 'true' }
+        expression { env.RELEASE_BRANCH == 'true' && (env.RELEASE_READY == 'true' || params.FORCE_RELEASE_STAGES) }
       }
       steps {
         withCredentials([
@@ -155,7 +163,7 @@ pipeline {
 
     stage('Deploy to Kubernetes') {
       when {
-        expression { env.RELEASE_BRANCH == 'true' && env.RELEASE_READY == 'true' }
+        expression { env.RELEASE_BRANCH == 'true' && (env.RELEASE_READY == 'true' || params.FORCE_RELEASE_STAGES) }
       }
       steps {
         withCredentials([
