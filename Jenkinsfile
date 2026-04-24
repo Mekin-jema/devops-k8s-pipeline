@@ -1,9 +1,6 @@
 pipeline {
   agent {
-    kubernetes {
-      inheritFrom 'docker-k8s'
-      defaultContainer 'jnlp'
-    }
+     any
   }
 
   options {
