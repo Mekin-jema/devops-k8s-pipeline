@@ -1,6 +1,10 @@
 pipeline {
   agent any
 
+  options {
+    skipDefaultCheckout(true)
+  }
+
   environment {
     REGISTRY = 'docker.io'
     DOCKERHUB_NAMESPACE = 'mekin2024'
@@ -16,6 +20,31 @@ pipeline {
         checkout scm
         script {
           env.IMAGE_TAG = sh(returnStdout: true, script: 'git rev-parse --short=7 HEAD').trim()
+        }
+      }
+    }
+
+    stage('Preflight') {
+      steps {
+        script {
+          def missing = []
+          ['git', 'node', 'npm'].each { tool ->
+            if (sh(script: "command -v ${tool} >/dev/null 2>&1", returnStatus: true) != 0) {
+              missing << tool
+            }
+          }
+
+          if (env.BRANCH_NAME in ['main', 'master']) {
+            ['docker', 'kubectl'].each { tool ->
+              if (sh(script: "command -v ${tool} >/dev/null 2>&1", returnStatus: true) != 0) {
+                missing << tool
+              }
+            }
+          }
+
+          if (!missing.isEmpty()) {
+            error("""Missing required tools on Jenkins agent: ${missing.join(', ')}\nUse the custom Jenkins image from docker/jenkins.Dockerfile (or a node with equivalent tooling) and ensure Docker daemon access is configured (for example by mounting /var/run/docker.sock).""")
+          }
         }
       }
     }
@@ -48,6 +77,12 @@ pipeline {
     }
 
     stage('Build Images') {
+      when {
+        anyOf {
+          branch 'main'
+          branch 'master'
+        }
+      }
       steps {
         sh "docker build -f docker/backend.Dockerfile -t ${BACKEND_IMAGE}:${IMAGE_TAG} ."
         sh "docker build -f docker/frontend.Dockerfile -t ${FRONTEND_IMAGE}:${IMAGE_TAG} ."
