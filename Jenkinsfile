@@ -1,10 +1,5 @@
 pipeline {
-agent {
-  docker {
-    image 'mekin2024/jenkins-agent:latest'
-    args '-v /var/run/docker.sock:/var/run/docker.sock -u root'
-  }
-}
+  agent any
 
   options {
     skipDefaultCheckout(true)
@@ -171,7 +166,13 @@ agent {
 
   post {
     always {
-      cleanWs()
+      script {
+        if (env.WORKSPACE?.trim()) {
+          cleanWs(notFailBuild: true)
+        } else {
+          echo 'Skipping workspace cleanup because no workspace was allocated.'
+        }
+      }
     }
   }
 }

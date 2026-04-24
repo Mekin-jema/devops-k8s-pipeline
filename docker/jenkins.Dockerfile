@@ -5,7 +5,7 @@ USER root
 ENV DEBIAN_FRONTEND=noninteractive
 
 # ===============================
-# Install system dependencies
+# Install base tools
 # ===============================
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
@@ -18,27 +18,27 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # ===============================
-# Install Node.js + npm (FIX for your pipeline)
+# Install Node.js 20
 # ===============================
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y nodejs \
-    && node -v \
-    && npm -v
+    && node -v && npm -v
 
 # ===============================
-# Install kubectl
+# Install kubectl (pinned version recommended)
 # ===============================
-RUN curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" \
+RUN curl -LO https://dl.k8s.io/release/v1.29.0/bin/linux/amd64/kubectl \
     && install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl \
     && rm kubectl
 
 # ===============================
-# Allow Jenkins user to use Docker
+# Docker permissions
 # ===============================
-RUN usermod -aG docker jenkins
+RUN groupadd -f docker \
+    && usermod -aG docker jenkins
 
 # ===============================
-# Install Jenkins plugins
+# Jenkins plugins
 # ===============================
 USER jenkins
 
@@ -53,6 +53,8 @@ RUN jenkins-plugin-cli --plugins \
     nodejs
 
 # ===============================
-# Ports
+# Cleanup plugin cache (important)
 # ===============================
+RUN rm -rf /var/jenkins_home/.cache || true
+
 EXPOSE 8080 50000
