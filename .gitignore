@@ -1,7 +1,8 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
-
+jenkins_key
+jenkins_key.pub
 node_modules/
 /.pnp
 .pnp.*
