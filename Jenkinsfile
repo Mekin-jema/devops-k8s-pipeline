@@ -144,7 +144,7 @@ Install these tools on the selected Jenkins node before running this pipeline.
       }
     }
 
-   stage('Deploy to Kubernetes') {
+stage('Deploy to Kubernetes') {
   steps {
     withCredentials([
       file(credentialsId: params.KUBECONFIG_CREDENTIALS_ID, variable: 'KUBECONFIG_FILE')
@@ -152,28 +152,27 @@ Install these tools on the selected Jenkins node before running this pipeline.
       sh '''
         set -euo pipefail
 
-        echo "=== Setting kubeconfig ==="
         export KUBECONFIG="$KUBECONFIG_FILE"
 
-        echo "=== Using workspace ==="
-        cd "$WORKSPACE"
+        echo "Using kubeconfig:"
+        kubectl config view
 
-        echo "=== Checking k8s directory ==="
-        ls -la ./k8s
+        kubectl cluster-info
 
-        echo "=== Applying Kubernetes manifests ==="
-        kubectl apply -k ./k8s
+        cd $WORKSPACE
 
-        echo "=== Updating backend image ==="
+        # ensure namespace exists
+        kubectl create namespace todo-app --dry-run=client -o yaml | kubectl apply -f -
+
+        # apply manifests
+        kubectl apply -k k8s/ --validate=false
+
+        # update images
         kubectl set image deployment/backend backend=${BACKEND_IMAGE}:${IMAGE_TAG} -n todo-app
-
-        echo "=== Updating frontend image ==="
         kubectl set image deployment/frontend frontend=${FRONTEND_IMAGE}:${IMAGE_TAG} -n todo-app
 
-        echo "=== Waiting for rollout (backend) ==="
+        # rollout check
         kubectl rollout status deployment/backend -n todo-app
-
-        echo "=== Waiting for rollout (frontend) ==="
         kubectl rollout status deployment/frontend -n todo-app
       '''
     }
