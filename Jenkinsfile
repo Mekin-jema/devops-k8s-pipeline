@@ -1,6 +1,11 @@
 pipeline {
   agent any
 
+  parameters {
+    string(name: 'DOCKERHUB_CREDENTIALS_ID', defaultValue: 'dockerhub-creds', description: 'Jenkins credentials ID for Docker Hub username/password')
+    string(name: 'KUBECONFIG_CREDENTIALS_ID', defaultValue: 'kubeconfig', description: 'Jenkins credentials ID for kubeconfig secret file')
+  }
+
   options {
     skipDefaultCheckout(true)
     timestamps()
@@ -126,7 +131,7 @@ Install these tools on the selected Jenkins node before running this pipeline.
     stage('Push Images') {
       steps {
         withCredentials([
-          usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_TOKEN')
+          usernamePassword(credentialsId: params.DOCKERHUB_CREDENTIALS_ID, usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_TOKEN')
         ]) {
           sh '''
             set -euo pipefail
@@ -141,18 +146,29 @@ Install these tools on the selected Jenkins node before running this pipeline.
 
     stage('Deploy to Kubernetes') {
       steps {
-        withCredentials([
-          file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG_FILE')
-        ]) {
-          sh '''
-            set -euo pipefail
-            export KUBECONFIG="$KUBECONFIG_FILE"
-            kubectl apply -k k8s/
-            kubectl set image deployment/backend backend=${BACKEND_IMAGE}:${IMAGE_TAG} -n ${K8S_NAMESPACE}
-            kubectl set image deployment/frontend frontend=${FRONTEND_IMAGE}:${IMAGE_TAG} -n ${K8S_NAMESPACE}
-            kubectl rollout status deployment/backend -n ${K8S_NAMESPACE}
-            kubectl rollout status deployment/frontend -n ${K8S_NAMESPACE}
-          '''
+        script {
+          try {
+            withCredentials([
+              file(credentialsId: params.KUBECONFIG_CREDENTIALS_ID, variable: 'KUBECONFIG_FILE')
+            ]) {
+              sh '''
+                set -euo pipefail
+                export KUBECONFIG="$KUBECONFIG_FILE"
+                kubectl apply -k k8s/
+                kubectl set image deployment/backend backend=${BACKEND_IMAGE}:${IMAGE_TAG} -n ${K8S_NAMESPACE}
+                kubectl set image deployment/frontend frontend=${FRONTEND_IMAGE}:${IMAGE_TAG} -n ${K8S_NAMESPACE}
+                kubectl rollout status deployment/backend -n ${K8S_NAMESPACE}
+                kubectl rollout status deployment/frontend -n ${K8S_NAMESPACE}
+              '''
+            }
+          } catch (hudson.AbortException e) {
+            if (e.message?.contains("Could not find credentials entry with ID '${params.KUBECONFIG_CREDENTIALS_ID}'")) {
+              echo "Skipping deploy: missing Jenkins credential '${params.KUBECONFIG_CREDENTIALS_ID}'."
+              currentBuild.result = 'UNSTABLE'
+            } else {
+              throw e
+            }
+          }
         }
       }
     }
