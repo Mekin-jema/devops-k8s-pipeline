@@ -237,7 +237,15 @@ Fix options:
     always {
       script {
         if (env.WORKSPACE?.trim()) {
-          cleanWs(notFailBuild: true)
+          try {
+            cleanWs(notFailBuild: true)
+          } catch (NoSuchMethodError e) {
+            echo "cleanWs step is unavailable (${e.class.simpleName}); falling back to deleteDir()."
+            deleteDir()
+          } catch (MissingMethodException e) {
+            echo "cleanWs step is unavailable (${e.class.simpleName}); falling back to deleteDir()."
+            deleteDir()
+          }
         } else {
           echo 'Skipping workspace cleanup because no workspace was allocated.'
         }
