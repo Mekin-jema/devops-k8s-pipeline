@@ -144,34 +144,41 @@ Install these tools on the selected Jenkins node before running this pipeline.
       }
     }
 
-    stage('Deploy to Kubernetes') {
-      steps {
-        script {
-          try {
-            withCredentials([
-              file(credentialsId: params.KUBECONFIG_CREDENTIALS_ID, variable: 'KUBECONFIG_FILE')
-            ]) {
-              sh '''
-                set -euo pipefail
-                export KUBECONFIG="$KUBECONFIG_FILE"
-                kubectl apply -k k8s/
-                kubectl set image deployment/backend backend=${BACKEND_IMAGE}:${IMAGE_TAG} -n ${K8S_NAMESPACE}
-                kubectl set image deployment/frontend frontend=${FRONTEND_IMAGE}:${IMAGE_TAG} -n ${K8S_NAMESPACE}
-                kubectl rollout status deployment/backend -n ${K8S_NAMESPACE}
-                kubectl rollout status deployment/frontend -n ${K8S_NAMESPACE}
-              '''
-            }
-          } catch (hudson.AbortException e) {
-            if (e.message?.contains("Could not find credentials entry with ID '${params.KUBECONFIG_CREDENTIALS_ID}'")) {
-              echo "Skipping deploy: missing Jenkins credential '${params.KUBECONFIG_CREDENTIALS_ID}'."
-              currentBuild.result = 'UNSTABLE'
-            } else {
-              throw e
-            }
-          }
-        }
-      }
+   stage('Deploy to Kubernetes') {
+  steps {
+    withCredentials([
+      file(credentialsId: params.KUBECONFIG_CREDENTIALS_ID, variable: 'KUBECONFIG_FILE')
+    ]) {
+      sh '''
+        set -euo pipefail
+
+        echo "=== Setting kubeconfig ==="
+        export KUBECONFIG="$KUBECONFIG_FILE"
+
+        echo "=== Using workspace ==="
+        cd "$WORKSPACE"
+
+        echo "=== Checking k8s directory ==="
+        ls -la ./k8s
+
+        echo "=== Applying Kubernetes manifests ==="
+        kubectl apply -k ./k8s
+
+        echo "=== Updating backend image ==="
+        kubectl set image deployment/backend backend=${BACKEND_IMAGE}:${IMAGE_TAG} -n todo-app
+
+        echo "=== Updating frontend image ==="
+        kubectl set image deployment/frontend frontend=${FRONTEND_IMAGE}:${IMAGE_TAG} -n todo-app
+
+        echo "=== Waiting for rollout (backend) ==="
+        kubectl rollout status deployment/backend -n todo-app
+
+        echo "=== Waiting for rollout (frontend) ==="
+        kubectl rollout status deployment/frontend -n todo-app
+      '''
     }
+  }
+}
   }
 
   post {

@@ -1,5 +1,5 @@
 # Jenkins Sandbox
-services:
+services:    
   jenkins:
     build:
       context: ..
