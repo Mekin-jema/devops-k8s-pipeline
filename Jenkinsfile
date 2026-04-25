@@ -1,11 +1,6 @@
 pipeline {
   agent any
 
-  parameters {
-    booleanParam(name: 'FORCE_RELEASE_STAGES', defaultValue: false, description: 'Run Build/Push/Deploy stages even if release tools are missing in preflight checks')
-    string(name: 'NODEJS_TOOL_NAME', defaultValue: '', description: 'Optional Jenkins NodeJS tool name (Manage Jenkins > Tools). Leave empty to use node/npm preinstalled on agent.')
-  }
-
   options {
     skipDefaultCheckout(true)
     timestamps()
@@ -19,7 +14,6 @@ pipeline {
     FRONTEND_IMAGE = "${REGISTRY}/${DOCKERHUB_NAMESPACE}/todo-frontend"
     IMAGE_TAG = 'local'
     K8S_NAMESPACE = 'todo-app'
-    RELEASE_READY = 'false'
   }
 
   stages {
@@ -28,40 +22,7 @@ pipeline {
         checkout scm
         script {
           env.IMAGE_TAG = sh(returnStdout: true, script: 'git rev-parse --short=7 HEAD').trim()
-
-          def branchCandidate = (env.BRANCH_NAME ?: env.GIT_BRANCH ?: env.CHANGE_BRANCH ?: '').trim()
-          if (!branchCandidate || branchCandidate == 'HEAD') {
-            branchCandidate = sh(
-              returnStdout: true,
-              script: "git for-each-ref --format='%(refname:short)' --points-at HEAD refs/remotes/origin | head -n1"
-            ).trim()
-          }
-          if (!branchCandidate || branchCandidate == 'HEAD') {
-            branchCandidate = sh(returnStdout: true, script: 'git rev-parse --abbrev-ref HEAD').trim()
-          }
-
-          env.EFFECTIVE_BRANCH = branchCandidate
-          def normalizedBranch = branchCandidate
-            .replaceFirst('^refs/heads/', '')
-            .replaceFirst('^refs/remotes/', '')
-            .replaceFirst('^origin/', '')
-
-          env.RELEASE_BRANCH = (normalizedBranch in ['main', 'master']).toString()
-          echo "Resolved branch='${env.EFFECTIVE_BRANCH}', normalized='${normalizedBranch}', releaseBranch=${env.RELEASE_BRANCH}"
-        }
-      }
-    }
-
-    stage('Configure Tools') {
-      steps {
-        script {
-          if (params.NODEJS_TOOL_NAME?.trim()) {
-            def nodeHome = tool name: params.NODEJS_TOOL_NAME, type: 'jenkins.plugins.nodejs.tools.NodeJSInstallation'
-            env.PATH = "${nodeHome}/bin:${env.PATH}"
-            echo "Using Jenkins NodeJS tool '${params.NODEJS_TOOL_NAME}' from ${nodeHome}"
-          } else {
-            echo 'NODEJS_TOOL_NAME is empty. Using node/npm from the agent PATH.'
-          }
+          echo "Image tag resolved to ${env.IMAGE_TAG}"
         }
       }
     }
@@ -73,8 +34,6 @@ pipeline {
           echo "NODE_LABELS=${env.NODE_LABELS}"
           echo "BRANCH_NAME=${env.BRANCH_NAME}"
           echo "GIT_BRANCH=${env.GIT_BRANCH}"
-          echo "EFFECTIVE_BRANCH=${env.EFFECTIVE_BRANCH}"
-          echo "RELEASE_BRANCH=${env.RELEASE_BRANCH}"
         }
         sh '''
           set +e
@@ -99,7 +58,7 @@ pipeline {
       steps {
         script {
           def missing = []
-          ['git', 'node', 'npm'].each { tool ->
+          ['git', 'node', 'npm', 'docker', 'kubectl'].each { tool ->
             if (sh(script: "command -v ${tool} >/dev/null 2>&1", returnStatus: true) != 0) {
               missing << tool
             }
@@ -108,33 +67,8 @@ pipeline {
           if (!missing.isEmpty()) {
             error("""Missing required tools on Jenkins agent: ${missing.join(', ')}
 Install these tools on the selected Jenkins node before running this pipeline.
-
-Fix options:
-1) Use the custom Jenkins image from docker/jenkins.Dockerfile (includes git/node/npm/docker/kubectl).
-2) Configure Jenkins NodeJS tool (Manage Jenkins > Tools) and set NODEJS_TOOL_NAME parameter.
 """)
           }
-
-          env.RELEASE_READY = 'true'
-          if (env.RELEASE_BRANCH == 'true') {
-            def missingReleaseTools = []
-            ['docker', 'kubectl'].each { tool ->
-              if (sh(script: "command -v ${tool} >/dev/null 2>&1", returnStatus: true) != 0) {
-                missingReleaseTools << tool
-              }
-            }
-
-            if (!missingReleaseTools.isEmpty()) {
-              if (params.FORCE_RELEASE_STAGES) {
-                echo "FORCE_RELEASE_STAGES=true: continuing even though release tools are missing: ${missingReleaseTools.join(', ')}"
-              } else {
-                env.RELEASE_READY = 'false'
-                echo "Release stages will be skipped because required release tools are missing: ${missingReleaseTools.join(', ')}"
-              }
-            }
-          }
-
-          echo "Release gating: releaseBranch=${env.RELEASE_BRANCH}, releaseReady=${env.RELEASE_READY}, forceReleaseStages=${params.FORCE_RELEASE_STAGES}"
         }
       }
     }
@@ -180,9 +114,6 @@ Fix options:
     }
 
     stage('Build Images') {
-      when {
-        expression { env.RELEASE_BRANCH == 'true' && (env.RELEASE_READY == 'true' || params.FORCE_RELEASE_STAGES) }
-      }
       steps {
         sh '''
           set -euo pipefail
@@ -193,9 +124,6 @@ Fix options:
     }
 
     stage('Push Images') {
-      when {
-        expression { env.RELEASE_BRANCH == 'true' && (env.RELEASE_READY == 'true' || params.FORCE_RELEASE_STAGES) }
-      }
       steps {
         withCredentials([
           usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_TOKEN')
@@ -212,9 +140,6 @@ Fix options:
     }
 
     stage('Deploy to Kubernetes') {
-      when {
-        expression { env.RELEASE_BRANCH == 'true' && (env.RELEASE_READY == 'true' || params.FORCE_RELEASE_STAGES) }
-      }
       steps {
         withCredentials([
           file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG_FILE')
@@ -236,19 +161,7 @@ Fix options:
   post {
     always {
       script {
-        if (env.WORKSPACE?.trim()) {
-          try {
-            cleanWs(notFailBuild: true)
-          } catch (NoSuchMethodError e) {
-            echo "cleanWs step is unavailable (${e.class.simpleName}); falling back to deleteDir()."
-            deleteDir()
-          } catch (MissingMethodException e) {
-            echo "cleanWs step is unavailable (${e.class.simpleName}); falling back to deleteDir()."
-            deleteDir()
-          }
-        } else {
-          echo 'Skipping workspace cleanup because no workspace was allocated.'
-        }
+        deleteDir()
       }
     }
   }
