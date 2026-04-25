@@ -1,7 +1,10 @@
 # Jenkins Sandbox
 services:
   jenkins:
-    image: jenkins/jenkins:lts
+    build:
+      context: ..
+      dockerfile: docker/jenkins.Dockerfile
+    image: mekin2024/jenkins-devops-tools:local
     container_name: jenkins_sandbox
     privileged: true
     user: root

@@ -17,6 +17,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     unzip \
     && rm -rf /var/lib/apt/lists/*
 
+# Debian packaging can provide dockerd without the docker CLI in some base images.
+# Install docker-cli only when docker command is missing, then assert it exists.
+RUN if ! command -v docker >/dev/null 2>&1; then \
+            apt-get update; \
+            apt-get install -y --no-install-recommends docker-cli; \
+            rm -rf /var/lib/apt/lists/*; \
+        fi \
+        && command -v docker >/dev/null 2>&1
+
 # ===============================
 # Install Node.js 20
 # ===============================

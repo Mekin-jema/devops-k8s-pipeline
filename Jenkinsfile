@@ -3,10 +3,13 @@ pipeline {
 
   parameters {
     booleanParam(name: 'FORCE_RELEASE_STAGES', defaultValue: false, description: 'Run Build/Push/Deploy stages even if release tools are missing in preflight checks')
+    string(name: 'NODEJS_TOOL_NAME', defaultValue: '', description: 'Optional Jenkins NodeJS tool name (Manage Jenkins > Tools). Leave empty to use node/npm preinstalled on agent.')
   }
 
   options {
     skipDefaultCheckout(true)
+    timestamps()
+    disableConcurrentBuilds()
   }
 
   environment {
@@ -49,6 +52,20 @@ pipeline {
       }
     }
 
+    stage('Configure Tools') {
+      steps {
+        script {
+          if (params.NODEJS_TOOL_NAME?.trim()) {
+            def nodeHome = tool name: params.NODEJS_TOOL_NAME, type: 'jenkins.plugins.nodejs.tools.NodeJSInstallation'
+            env.PATH = "${nodeHome}/bin:${env.PATH}"
+            echo "Using Jenkins NodeJS tool '${params.NODEJS_TOOL_NAME}' from ${nodeHome}"
+          } else {
+            echo 'NODEJS_TOOL_NAME is empty. Using node/npm from the agent PATH.'
+          }
+        }
+      }
+    }
+
     stage('Agent Debug Info') {
       steps {
         script {
@@ -66,6 +83,14 @@ pipeline {
             printf "%s -> " "$cmd"
             command -v "$cmd" || true
           done
+
+          echo ""
+          echo "Tool versions (if available):"
+          git --version || true
+          node --version || true
+          npm --version || true
+          docker --version || true
+          kubectl version --client --short || kubectl version --client || true
         '''
       }
     }
@@ -81,7 +106,13 @@ pipeline {
           }
 
           if (!missing.isEmpty()) {
-            error("""Missing required tools on Jenkins agent: ${missing.join(', ')}\nInstall these tools on the selected Jenkins node before running this pipeline.""")
+            error("""Missing required tools on Jenkins agent: ${missing.join(', ')}
+Install these tools on the selected Jenkins node before running this pipeline.
+
+Fix options:
+1) Use the custom Jenkins image from docker/jenkins.Dockerfile (includes git/node/npm/docker/kubectl).
+2) Configure Jenkins NodeJS tool (Manage Jenkins > Tools) and set NODEJS_TOOL_NAME parameter.
+""")
           }
 
           env.RELEASE_READY = 'true'
@@ -110,8 +141,21 @@ pipeline {
 
     stage('Install') {
       steps {
-        sh 'npm install --prefix frontend'
-        sh 'npm install --prefix backend'
+        sh '''
+          set -euo pipefail
+
+          if [ -f frontend/package-lock.json ]; then
+            npm ci --prefix frontend
+          else
+            npm install --prefix frontend
+          fi
+
+          if [ -f backend/package-lock.json ]; then
+            npm ci --prefix backend
+          else
+            npm install --prefix backend
+          fi
+        '''
       }
     }
 
@@ -140,8 +184,11 @@ pipeline {
         expression { env.RELEASE_BRANCH == 'true' && (env.RELEASE_READY == 'true' || params.FORCE_RELEASE_STAGES) }
       }
       steps {
-        sh "docker build -f docker/backend.Dockerfile -t ${BACKEND_IMAGE}:${IMAGE_TAG} ."
-        sh "docker build -f docker/frontend.Dockerfile -t ${FRONTEND_IMAGE}:${IMAGE_TAG} ."
+        sh '''
+          set -euo pipefail
+          docker build -f docker/backend.Dockerfile -t ${BACKEND_IMAGE}:${IMAGE_TAG} .
+          docker build -f docker/frontend.Dockerfile -t ${FRONTEND_IMAGE}:${IMAGE_TAG} .
+        '''
       }
     }
 
@@ -153,10 +200,13 @@ pipeline {
         withCredentials([
           usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_TOKEN')
         ]) {
-          sh 'echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USER" --password-stdin'
-          sh "docker push ${BACKEND_IMAGE}:${IMAGE_TAG}"
-          sh "docker push ${FRONTEND_IMAGE}:${IMAGE_TAG}"
-          sh 'docker logout'
+          sh '''
+            set -euo pipefail
+            echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USER" --password-stdin
+            docker push ${BACKEND_IMAGE}:${IMAGE_TAG}
+            docker push ${FRONTEND_IMAGE}:${IMAGE_TAG}
+            docker logout
+          '''
         }
       }
     }
@@ -170,6 +220,7 @@ pipeline {
           file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG_FILE')
         ]) {
           sh '''
+            set -euo pipefail
             export KUBECONFIG="$KUBECONFIG_FILE"
             kubectl apply -k k8s/
             kubectl set image deployment/backend backend=${BACKEND_IMAGE}:${IMAGE_TAG} -n ${K8S_NAMESPACE}
