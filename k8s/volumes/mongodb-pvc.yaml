@@ -1,11 +1,15 @@
+# PersistentVolumeClaim requested by MongoDB deployment.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
+  # Referenced by mongodb deployment volume claimName.
   name: mongodb-pvc
   namespace: todo-app
 spec:
   accessModes:
+    # Must be compatible with PV access mode.
     - ReadWriteOnce
   resources:
     requests:
+      # Requested storage capacity from a matching PV/storage class.
       storage: 1Gi

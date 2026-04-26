@@ -1,12 +1,18 @@
+# PersistentVolume backing MongoDB data storage.
 apiVersion: v1
 kind: PersistentVolume
 metadata:
+  # Static PV name referenced indirectly by PVC binding.
   name: mongodb-pv
 spec:
   capacity:
+    # Maximum storage this PV can provide.
     storage: 2Gi
   accessModes:
+    # Mounted as read-write by a single node at a time.
     - ReadWriteOnce
+  # Keep data when PVC is deleted (manual cleanup required).
   persistentVolumeReclaimPolicy: Retain
   hostPath:
+    # Local node path used for persistence in single-node/local clusters.
     path: /data/todo-mongo

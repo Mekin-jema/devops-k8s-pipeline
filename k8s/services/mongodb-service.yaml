@@ -1,13 +1,19 @@
+# Internal service for MongoDB; not exposed externally.
 apiVersion: v1
 kind: Service
 metadata:
+  # Service DNS used by backend MONGODB_URI.
   name: mongodb-service
   namespace: todo-app
 spec:
   selector:
+    # Routes traffic to pods labeled app=mongodb.
     app: mongodb
   ports:
+    # Cluster service port for MongoDB clients.
     - port: 27017
+      # MongoDB container port on selected pods.
       targetPort: 27017
       protocol: TCP
+  # ClusterIP keeps database reachable only inside the cluster network.
   type: ClusterIP

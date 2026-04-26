@@ -1,8 +1,8 @@
-# Legacy file retained for compatibility.
-# Use manifests under ./services instead:
+# Legacy placeholder file retained for compatibility with older paths.
+#
+# Active service manifests are located in:
 # - services/frontend-service.yaml
 # - services/backend-service.yaml
 # - services/mongodb-service.yaml
-  selector:
-
-    app: todo-app  # This selector name comes from the deployment metadata lable's name
+#
+# This file intentionally contains comments only and is not used by kustomization.yaml.

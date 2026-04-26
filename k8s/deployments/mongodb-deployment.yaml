@@ -1,27 +1,37 @@
+# MongoDB deployment for Todo app data persistence.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  # Deployment name used by mongodb-service selector.
   name: mongodb
   namespace: todo-app
 spec:
+  # Single database pod for local/sandbox use.
   replicas: 1
   selector:
+    # Must match pod labels below.
     matchLabels:
       app: mongodb
   template:
     metadata:
+      # Label consumed by mongodb-service selector.
       labels:
         app: mongodb
     spec:
       containers:
+        # MongoDB container definition.
         - name: mongodb
+          # Official MongoDB image version.
           image: mongo:7
           ports:
+            # MongoDB default TCP port.
             - containerPort: 27017
           resources:
+            # Scheduler minimums.
             requests:
               cpu: "100m"
               memory: "128Mi"
+            # Resource ceiling.
             limits:
               cpu: "500m"
               memory: "512Mi"
@@ -29,17 +39,21 @@ spec:
             - name: MONGO_INITDB_ROOT_USERNAME
               valueFrom:
                 secretKeyRef:
+                  # Pull username from secret instead of hardcoding.
                   name: mongodb-secret
                   key: MONGO_ROOT_USERNAME
             - name: MONGO_INITDB_ROOT_PASSWORD
               valueFrom:
                 secretKeyRef:
+                  # Pull password from secret instead of hardcoding.
                   name: mongodb-secret
                   key: MONGO_ROOT_PASSWORD
           volumeMounts:
+            # Mount persistent storage at MongoDB data directory.
             - name: mongodb-data
               mountPath: /data/db
       volumes:
         - name: mongodb-data
           persistentVolumeClaim:
+            # Bind this pod volume to the PVC defined in volumes/mongodb-pvc.yaml.
             claimName: mongodb-pvc
