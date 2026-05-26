@@ -16,10 +16,13 @@
           privileged: true
           # Run as root so Jenkins can access docker.sock and mounted kube files.
           user: root
+          ports:
+            - "8080:8080"
+            - "50000:50000"
 
           # Use host networking so container shares host network namespace.
           # This simplifies access to local Minikube/Kubernetes endpoints.
-          network_mode: host
+          # network_mode: host
 
           volumes:
             # Persist Jenkins home (jobs, plugins, credentials, workspace metadata).
@@ -41,7 +44,7 @@
           user: root
 
           # Match controller networking behavior for predictable communication.
-          network_mode: host
+          # network_mode: host
 
           environment:
             # Public key injected into agent authorized_keys for Jenkins SSH login.

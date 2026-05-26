@@ -3,7 +3,9 @@ pipeline {
 
   parameters {
     string(name: 'DOCKERHUB_CREDENTIALS_ID', defaultValue: 'dockerhub-creds', description: 'Jenkins credentials ID for Docker Hub username/password')
-    string(name: 'KUBECONFIG_CREDENTIALS_ID', defaultValue: 'kubeconfig', description: 'Jenkins credentials ID for kubeconfig secret file')
+    string(name: 'AWS_CREDENTIALS_ID', defaultValue: 'aws-creds', description: 'Jenkins credentials ID for AWS access key ID and secret access key')
+    string(name: 'AWS_REGION', defaultValue: 'us-east-1', description: 'AWS region that hosts the EKS cluster')
+    string(name: 'EKS_CLUSTER_NAME', defaultValue: 'todo-app-eks', description: 'AWS EKS cluster name to target for deployment')
   }
 
   options {
@@ -43,7 +45,7 @@ pipeline {
         sh '''
           set +e
           echo "PATH=$PATH"
-          for cmd in git node npm docker kubectl; do
+          for cmd in git node npm docker kubectl aws; do
             printf "%s -> " "$cmd"
             command -v "$cmd" || true
           done
@@ -55,6 +57,7 @@ pipeline {
           npm --version || true
           docker --version || true
           kubectl version --client --short || kubectl version --client || true
+          aws --version || true
         '''
       }
     }
@@ -63,7 +66,7 @@ pipeline {
       steps {
         script {
           def missing = []
-          ['git', 'node', 'npm', 'docker', 'kubectl'].each { tool ->
+          ['git', 'node', 'npm', 'docker', 'kubectl', 'aws'].each { tool ->
             if (sh(script: "command -v ${tool} >/dev/null 2>&1", returnStatus: true) != 0) {
               missing << tool
             }
@@ -144,42 +147,48 @@ Install these tools on the selected Jenkins node before running this pipeline.
       }
     }
 
-stage('Deploy to Kubernetes') {
-  steps {
-    withCredentials([
-      file(credentialsId: params.KUBECONFIG_CREDENTIALS_ID, variable: 'KUBECONFIG_FILE')
-    ]) {
-      sh '''
-        set -euo pipefail
+      steps {
+        withCredentials([
+          usernamePassword(credentialsId: params.AWS_CREDENTIALS_ID, usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')
+        ]) {
+          sh '''
+            set -euo pipefail
 
-        export KUBECONFIG="$KUBECONFIG_FILE"
+            export AWS_DEFAULT_REGION="${AWS_REGION}"
+            export AWS_REGION="${AWS_REGION}"
+            export KUBECONFIG="$WORKSPACE/.kubeconfig"
 
-        echo "Using kubeconfig:"
-        kubectl config view
+            echo "Step 1: verify AWS identity"
+            aws sts get-caller-identity
 
-        kubectl cluster-info
+            echo "Step 2: build kubeconfig for EKS"
+            aws eks update-kubeconfig \
+              --region "${AWS_REGION}" \
+              --name "${EKS_CLUSTER_NAME}" \
+              --kubeconfig "$KUBECONFIG"
 
-        cd $WORKSPACE
+            echo "Step 3: verify cluster access"
+            kubectl config current-context
+            kubectl get nodes
 
-        # ensure namespace exists
-        kubectl create namespace todo-app --dry-run=client -o yaml | kubectl apply -f -
+            echo "Step 4: create namespace if needed"
+            kubectl create namespace "${K8S_NAMESPACE}" --dry-run=client -o yaml | kubectl apply -f -
 
-        # apply manifests
-        kubectl apply -k k8s/ --validate=false
+            echo "Step 5: apply Kubernetes manifests"
+            kubectl apply -k k8s/ --validate=false
 
-        # update images
-        kubectl set image deployment/backend backend=${BACKEND_IMAGE}:${IMAGE_TAG} -n todo-app
-        kubectl set image deployment/frontend frontend=${FRONTEND_IMAGE}:${IMAGE_TAG} -n todo-app
+            echo "Step 6: pin the new image tags"
+            kubectl set image deployment/backend backend=${BACKEND_IMAGE}:${IMAGE_TAG} -n "${K8S_NAMESPACE}"
+            kubectl set image deployment/frontend frontend=${FRONTEND_IMAGE}:${IMAGE_TAG} -n "${K8S_NAMESPACE}"
 
-        # rollout check
-        kubectl rollout status deployment/backend -n todo-app
-        kubectl rollout status deployment/frontend -n todo-app
-      '''
+            echo "Step 7: wait for rollouts to complete"
+            kubectl rollout status deployment/backend -n "${K8S_NAMESPACE}"
+            kubectl rollout status deployment/frontend -n "${K8S_NAMESPACE}"
+          '''
+        }
+      }
     }
   }
-}
-  }
-
   post {
     always {
       script {
