@@ -147,6 +147,7 @@ Install these tools on the selected Jenkins node before running this pipeline.
       }
     }
 
+    stage('Deploy to EKS') {
       steps {
         withCredentials([
           usernamePassword(credentialsId: params.AWS_CREDENTIALS_ID, usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')
