@@ -134,14 +134,11 @@ pipeline {
     ]) {
 
       script {
-        def region = params.AWS_REGION
-        def cluster = params.EKS_CLUSTER_NAME
-
-        sh """
+        sh '''
           set -euo pipefail
 
-          export AWS_DEFAULT_REGION=${region}
-          export AWS_REGION=${region}
+          export AWS_DEFAULT_REGION="$AWS_REGION"
+          export AWS_REGION="$AWS_REGION"
           export KUBECONFIG=\$WORKSPACE/.kubeconfig
 
           echo "Step 1: AWS identity"
@@ -149,39 +146,39 @@ pipeline {
 
           echo "Step 2: kubeconfig"
           aws eks update-kubeconfig \
-            --region ${region} \
-            --name ${cluster} \
+            --region "$AWS_REGION" \
+            --name "$EKS_CLUSTER_NAME" \
             --kubeconfig \$KUBECONFIG
 
           echo "Step 3: cluster check"
           kubectl get nodes
 
           echo "Step 4: namespace"
-          kubectl create namespace ${K8S_NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
+          kubectl create namespace "$K8S_NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
 
           echo "Step 5: deploy"
           kubectl apply -k k8s/ --validate=false
 
           echo "Step 6: update images"
-          kubectl set image deployment/backend backend=${BACKEND_IMAGE}:${IMAGE_TAG} -n ${K8S_NAMESPACE}
-          kubectl set image deployment/frontend frontend=${FRONTEND_IMAGE}:${IMAGE_TAG} -n ${K8S_NAMESPACE}
+          kubectl set image deployment/backend backend="$BACKEND_IMAGE:$IMAGE_TAG" -n "$K8S_NAMESPACE"
+          kubectl set image deployment/frontend frontend="$FRONTEND_IMAGE:$IMAGE_TAG" -n "$K8S_NAMESPACE"
 
           echo "Step 7: rollout"
-          kubectl rollout status deployment/backend -n ${K8S_NAMESPACE}
-          kubectl rollout status deployment/frontend -n ${K8S_NAMESPACE}
+          kubectl rollout status deployment/backend -n "$K8S_NAMESPACE"
+          kubectl rollout status deployment/frontend -n "$K8S_NAMESPACE"
 
           echo "Deployment complete"
-          INGRESS_HOST=$(kubectl get ingress todo-app-ingress -n ${K8S_NAMESPACE} -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || true)
-          INGRESS_IP=$(kubectl get ingress todo-app-ingress -n ${K8S_NAMESPACE} -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || true)
+          INGRESS_HOST=$(kubectl get ingress todo-app-ingress -n "$K8S_NAMESPACE" -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || true)
+          INGRESS_IP=$(kubectl get ingress todo-app-ingress -n "$K8S_NAMESPACE" -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || true)
           INGRESS_ENDPOINT=${INGRESS_HOST:-$INGRESS_IP}
 
           if [ -n "$INGRESS_ENDPOINT" ]; then
             echo "Open the application at: http://${INGRESS_ENDPOINT}/"
             echo "API base URL: http://${INGRESS_ENDPOINT}/api"
           else
-            echo "Ingress endpoint is not ready yet. Check it with: kubectl get ingress todo-app-ingress -n ${K8S_NAMESPACE}"
+            echo "Ingress endpoint is not ready yet. Check it with: kubectl get ingress todo-app-ingress -n $K8S_NAMESPACE"
           fi
-        """
+        '''
       }
     }
   }
