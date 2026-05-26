@@ -4,7 +4,10 @@ pipeline {
   parameters {
     string(name: 'DOCKERHUB_CREDENTIALS_ID', defaultValue: 'dockerhub-creds', description: 'Jenkins credentials ID for Docker Hub username/password')
     string(name: 'AWS_CREDENTIALS_ID', defaultValue: 'aws-creds', description: 'Jenkins credentials ID for AWS access key ID and secret access key')
-    string(name: 'AWS_REGION', defaultValue: 'us-east-1', description: 'AWS region that hosts the EKS cluster')
+
+    // ✅ FIXED REGION (Stockholm)
+    string(name: 'AWS_REGION', defaultValue: 'eu-north-1', description: 'AWS region that hosts the EKS cluster')
+
     string(name: 'EKS_CLUSTER_NAME', defaultValue: 'todo-app-eks', description: 'AWS EKS cluster name to target for deployment')
   }
 
@@ -24,6 +27,7 @@ pipeline {
   }
 
   stages {
+
     stage('Checkout') {
       steps {
         checkout scm
@@ -42,23 +46,6 @@ pipeline {
           echo "BRANCH_NAME=${env.BRANCH_NAME}"
           echo "GIT_BRANCH=${env.GIT_BRANCH}"
         }
-        sh '''
-          set +e
-          echo "PATH=$PATH"
-          for cmd in git node npm docker kubectl aws; do
-            printf "%s -> " "$cmd"
-            command -v "$cmd" || true
-          done
-
-          echo ""
-          echo "Tool versions (if available):"
-          git --version || true
-          node --version || true
-          npm --version || true
-          docker --version || true
-          kubectl version --client --short || kubectl version --client || true
-          aws --version || true
-        '''
       }
     }
 
@@ -73,9 +60,7 @@ pipeline {
           }
 
           if (!missing.isEmpty()) {
-            error("""Missing required tools on Jenkins agent: ${missing.join(', ')}
-Install these tools on the selected Jenkins node before running this pipeline.
-""")
+            error("Missing tools: ${missing.join(', ')}")
           }
         }
       }
@@ -86,17 +71,8 @@ Install these tools on the selected Jenkins node before running this pipeline.
         sh '''
           set -euo pipefail
 
-          if [ -f frontend/package-lock.json ]; then
-            npm ci --prefix frontend
-          else
-            npm install --prefix frontend
-          fi
-
-          if [ -f backend/package-lock.json ]; then
-            npm ci --prefix backend
-          else
-            npm install --prefix backend
-          fi
+          npm ci --prefix frontend || npm install --prefix frontend
+          npm ci --prefix backend || npm install --prefix backend
         '''
       }
     }
@@ -134,13 +110,17 @@ Install these tools on the selected Jenkins node before running this pipeline.
     stage('Push Images') {
       steps {
         withCredentials([
-          usernamePassword(credentialsId: params.DOCKERHUB_CREDENTIALS_ID, usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_TOKEN')
+          usernamePassword(credentialsId: params.DOCKERHUB_CREDENTIALS_ID,
+          usernameVariable: 'DOCKERHUB_USER',
+          passwordVariable: 'DOCKERHUB_TOKEN')
         ]) {
           sh '''
             set -euo pipefail
             echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USER" --password-stdin
+
             docker push ${BACKEND_IMAGE}:${IMAGE_TAG}
             docker push ${FRONTEND_IMAGE}:${IMAGE_TAG}
+
             docker logout
           '''
         }
@@ -150,39 +130,41 @@ Install these tools on the selected Jenkins node before running this pipeline.
     stage('Deploy to EKS') {
       steps {
         withCredentials([
-          usernamePassword(credentialsId: params.AWS_CREDENTIALS_ID, usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')
+          usernamePassword(credentialsId: params.AWS_CREDENTIALS_ID,
+          usernameVariable: 'AWS_ACCESS_KEY_ID',
+          passwordVariable: 'AWS_SECRET_ACCESS_KEY')
         ]) {
           sh '''
             set -euo pipefail
 
-            export AWS_DEFAULT_REGION="${AWS_REGION}"
-            export AWS_REGION="${AWS_REGION}"
+            # ✅ FIX: use params properly
+            export AWS_DEFAULT_REGION="${params.AWS_REGION}"
+            export AWS_REGION="${params.AWS_REGION}"
             export KUBECONFIG="$WORKSPACE/.kubeconfig"
 
-            echo "Step 1: verify AWS identity"
+            echo "Step 1: AWS identity"
             aws sts get-caller-identity
 
-            echo "Step 2: build kubeconfig for EKS"
+            echo "Step 2: kubeconfig"
             aws eks update-kubeconfig \
-              --region "${AWS_REGION}" \
-              --name "${EKS_CLUSTER_NAME}" \
+              --region "${params.AWS_REGION}" \
+              --name "${params.EKS_CLUSTER_NAME}" \
               --kubeconfig "$KUBECONFIG"
 
-            echo "Step 3: verify cluster access"
-            kubectl config current-context
+            echo "Step 3: cluster check"
             kubectl get nodes
 
-            echo "Step 4: create namespace if needed"
+            echo "Step 4: namespace"
             kubectl create namespace "${K8S_NAMESPACE}" --dry-run=client -o yaml | kubectl apply -f -
 
-            echo "Step 5: apply Kubernetes manifests"
+            echo "Step 5: deploy"
             kubectl apply -k k8s/ --validate=false
 
-            echo "Step 6: pin the new image tags"
+            echo "Step 6: update images"
             kubectl set image deployment/backend backend=${BACKEND_IMAGE}:${IMAGE_TAG} -n "${K8S_NAMESPACE}"
             kubectl set image deployment/frontend frontend=${FRONTEND_IMAGE}:${IMAGE_TAG} -n "${K8S_NAMESPACE}"
 
-            echo "Step 7: wait for rollouts to complete"
+            echo "Step 7: rollout"
             kubectl rollout status deployment/backend -n "${K8S_NAMESPACE}"
             kubectl rollout status deployment/frontend -n "${K8S_NAMESPACE}"
           '''
@@ -190,11 +172,10 @@ Install these tools on the selected Jenkins node before running this pipeline.
       }
     }
   }
+
   post {
     always {
-      script {
-        deleteDir()
-      }
+      deleteDir()
     }
   }
 }
