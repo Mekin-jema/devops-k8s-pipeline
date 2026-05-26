@@ -126,51 +126,57 @@ pipeline {
         }
       }
     }
-
     stage('Deploy to EKS') {
-      steps {
-        withCredentials([
-          usernamePassword(credentialsId: params.AWS_CREDENTIALS_ID,
-          usernameVariable: 'AWS_ACCESS_KEY_ID',
-          passwordVariable: 'AWS_SECRET_ACCESS_KEY')
-        ]) {
-          sh '''
-            set -euo pipefail
+  steps {
+    withCredentials([
+      usernamePassword(
+        credentialsId: params.AWS_CREDENTIALS_ID,
+        usernameVariable: 'AWS_ACCESS_KEY_ID',
+        passwordVariable: 'AWS_SECRET_ACCESS_KEY'
+      )
+    ]) {
 
-            # ✅ FIX: use params properly
-            export AWS_DEFAULT_REGION="${params.AWS_REGION}"
-            export AWS_REGION="${params.AWS_REGION}"
-            export KUBECONFIG="$WORKSPACE/.kubeconfig"
+      script {
+        def region = params.AWS_REGION
+        def cluster = params.EKS_CLUSTER_NAME
 
-            echo "Step 1: AWS identity"
-            aws sts get-caller-identity
+        sh """
+          set -euo pipefail
 
-            echo "Step 2: kubeconfig"
-            aws eks update-kubeconfig \
-              --region "${params.AWS_REGION}" \
-              --name "${params.EKS_CLUSTER_NAME}" \
-              --kubeconfig "$KUBECONFIG"
+          export AWS_DEFAULT_REGION=${region}
+          export AWS_REGION=${region}
+          export KUBECONFIG=\$WORKSPACE/.kubeconfig
 
-            echo "Step 3: cluster check"
-            kubectl get nodes
+          echo "Step 1: AWS identity"
+          aws sts get-caller-identity
 
-            echo "Step 4: namespace"
-            kubectl create namespace "${K8S_NAMESPACE}" --dry-run=client -o yaml | kubectl apply -f -
+          echo "Step 2: kubeconfig"
+          aws eks update-kubeconfig \
+            --region ${region} \
+            --name ${cluster} \
+            --kubeconfig \$KUBECONFIG
 
-            echo "Step 5: deploy"
-            kubectl apply -k k8s/ --validate=false
+          echo "Step 3: cluster check"
+          kubectl get nodes
 
-            echo "Step 6: update images"
-            kubectl set image deployment/backend backend=${BACKEND_IMAGE}:${IMAGE_TAG} -n "${K8S_NAMESPACE}"
-            kubectl set image deployment/frontend frontend=${FRONTEND_IMAGE}:${IMAGE_TAG} -n "${K8S_NAMESPACE}"
+          echo "Step 4: namespace"
+          kubectl create namespace ${K8S_NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
 
-            echo "Step 7: rollout"
-            kubectl rollout status deployment/backend -n "${K8S_NAMESPACE}"
-            kubectl rollout status deployment/frontend -n "${K8S_NAMESPACE}"
-          '''
-        }
+          echo "Step 5: deploy"
+          kubectl apply -k k8s/ --validate=false
+
+          echo "Step 6: update images"
+          kubectl set image deployment/backend backend=${BACKEND_IMAGE}:${IMAGE_TAG} -n ${K8S_NAMESPACE}
+          kubectl set image deployment/frontend frontend=${FRONTEND_IMAGE}:${IMAGE_TAG} -n ${K8S_NAMESPACE}
+
+          echo "Step 7: rollout"
+          kubectl rollout status deployment/backend -n ${K8S_NAMESPACE}
+          kubectl rollout status deployment/frontend -n ${K8S_NAMESPACE}
+        """
       }
     }
+  }
+}
   }
 
   post {
