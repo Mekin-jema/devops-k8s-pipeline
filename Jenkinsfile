@@ -4,10 +4,7 @@ pipeline {
   parameters {
     string(name: 'DOCKERHUB_CREDENTIALS_ID', defaultValue: 'dockerhub-creds', description: 'Jenkins credentials ID for Docker Hub username/password')
     string(name: 'AWS_CREDENTIALS_ID', defaultValue: 'aws-creds', description: 'Jenkins credentials ID for AWS access key ID and secret access key')
-
-    // ✅ FIXED REGION (Stockholm)
     string(name: 'AWS_REGION', defaultValue: 'eu-north-1', description: 'AWS region that hosts the EKS cluster')
-
     string(name: 'EKS_CLUSTER_NAME', defaultValue: 'todo-app-eks', description: 'AWS EKS cluster name to target for deployment')
   }
 
@@ -172,6 +169,18 @@ pipeline {
           echo "Step 7: rollout"
           kubectl rollout status deployment/backend -n ${K8S_NAMESPACE}
           kubectl rollout status deployment/frontend -n ${K8S_NAMESPACE}
+
+          echo "Deployment complete"
+          INGRESS_HOST=$(kubectl get ingress todo-app-ingress -n ${K8S_NAMESPACE} -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || true)
+          INGRESS_IP=$(kubectl get ingress todo-app-ingress -n ${K8S_NAMESPACE} -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || true)
+          INGRESS_ENDPOINT=${INGRESS_HOST:-$INGRESS_IP}
+
+          if [ -n "$INGRESS_ENDPOINT" ]; then
+            echo "Open the application at: http://${INGRESS_ENDPOINT}/"
+            echo "API base URL: http://${INGRESS_ENDPOINT}/api"
+          else
+            echo "Ingress endpoint is not ready yet. Check it with: kubectl get ingress todo-app-ingress -n ${K8S_NAMESPACE}"
+          fi
         """
       }
     }
