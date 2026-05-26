@@ -24,6 +24,8 @@ jenkins_sandbox_home/kubeconfig-jenkins.yaml
 
 # production
 /build
+#  Jenkins 
+/jenkins_sandbox_home/jenkins_home
 
 # misc
 .DS_Store

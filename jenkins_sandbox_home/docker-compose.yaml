@@ -23,7 +23,7 @@
 
           volumes:
             # Persist Jenkins home (jobs, plugins, credentials, workspace metadata).
-            - ${JENKINS_HOME_PATH}:/var/jenkins_home
+            - ${JENKINS_HOME_PATH:-./jenkins_home}:/var/jenkins_home
             # Mount host Docker socket so Jenkins can run docker build/push commands.
             - /var/run/docker.sock:/var/run/docker.sock
             # Mount host kubeconfig so kubectl in Jenkins targets your host cluster context.
@@ -45,4 +45,4 @@
 
           environment:
             # Public key injected into agent authorized_keys for Jenkins SSH login.
-            - JENKINS_AGENT_SSH_PUBKEY=${JENKINS_AGENT_SSH_PUBLIC_KEY}
+            - JENKINS_AGENT_SSH_PUBKEY=${JENKINS_AGENT_SSH_PUBLIC_KEY:-}
