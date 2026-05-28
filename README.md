@@ -8,7 +8,7 @@ Install and have running:
 
 - Docker
 - kubectl
-- Minikube (or any Kubernetes cluster)
+- A Kubernetes cluster. Minikube works for local testing, while EKS is the target for the AWS storage setup.
 
 If using Minikube:
 

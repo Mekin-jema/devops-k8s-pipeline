@@ -12,7 +12,7 @@ resources:
   # Secret template used by backend and MongoDB.
   - secrets/mongodb-secret.example.yaml
   # Storage primitives used by MongoDB stateful data.
-  - volumes/mongodb-pv.yaml
+  - volumes/mongodb-storageclass.yaml
   - volumes/mongodb-pvc.yaml
   # Workloads.
   - deployments/mongodb-deployment.yaml

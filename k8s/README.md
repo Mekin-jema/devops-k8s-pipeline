@@ -140,16 +140,17 @@ Ingress is the main HTTP entrypoint for clean URL routing.
 
 MongoDB persistence uses:
 
-1. PV `mongodb-pv`
-	- Capacity: `2Gi`
+1. StorageClass `mongodb-ebs-sc`
+	- Provisioner: `ebs.csi.aws.com`
+	- Binding mode: `WaitForFirstConsumer`
 	- Reclaim policy: `Retain`
-	- Backing: `hostPath: /data/todo-mongo`
 
 2. PVC `mongodb-pvc`
 	- Requested storage: `1Gi`
 	- Access mode: `ReadWriteOnce`
+	- Storage class: `mongodb-ebs-sc`
 
-This ensures MongoDB data survives pod restarts. Since this uses `hostPath`, it is suitable for local/single-node setups and not ideal for multi-node production clusters.
+This ensures MongoDB data is provisioned dynamically on AWS EBS in EKS rather than being tied to a node-local `hostPath` volume.
 
 ## 7. Deployment and update lifecycle
 
@@ -216,7 +217,7 @@ kubectl describe pod -n todo-app
 
 4. MongoDB data not persisting
 	- Check PVC is bound
-	- Confirm node has write permission to host path `/data/todo-mongo`
+	- Confirm the AWS EBS CSI driver is installed and the `mongodb-ebs-sc` StorageClass exists
 
 5. Rollout stuck in CI
 	- Run `kubectl describe deployment/<name> -n todo-app`

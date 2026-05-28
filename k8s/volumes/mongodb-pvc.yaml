@@ -9,6 +9,7 @@ spec:
   accessModes:
     # Must be compatible with PV access mode.
     - ReadWriteOnce
+  storageClassName: mongodb-ebs-sc
   resources:
     requests:
       # Requested storage capacity from a matching PV/storage class.
