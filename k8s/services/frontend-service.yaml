@@ -18,4 +18,4 @@ spec:
       # Fixed node port to simplify local access and troubleshooting.
       nodePort: 30080
   # NodePort is useful for local/minikube environments.
-  type: NodePort
+  type: LoadBalancer
