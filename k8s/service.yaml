@@ -3,6 +3,5 @@
 # Active service manifests are located in:
 # - services/frontend-service.yaml
 # - services/backend-service.yaml
-# - services/mongodb-service.yaml
 #
 # This file intentionally contains comments only and is not used by kustomization.yaml.

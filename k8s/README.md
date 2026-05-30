@@ -4,11 +4,10 @@ This document explains how Kubernetes is used in this repository, how traffic an
 
 ## 1. High-level architecture
 
-This project deploys three workloads into Kubernetes:
+This project deploys two workloads into Kubernetes:
 
 1. Frontend (Next.js)
 2. Backend (Node.js + Express + Mongoose)
-3. MongoDB (stateful data)
 
 All resources are deployed in the `todo-app` namespace.
 
@@ -17,8 +16,7 @@ The runtime model is:
 1. User requests enter through Ingress (`todo.local`)
 2. `/` routes to frontend service
 3. `/api` routes to backend service
-4. Backend connects to MongoDB service
-5. MongoDB persists data through PVC -> PV
+4. Backend connects to MongoDB Atlas using a secret-backed URI
 
 ## 2. Manifest entrypoint and resource composition
 
@@ -34,10 +32,9 @@ The `kustomization.yaml` includes resources in this order:
 
 1. Namespace
 2. ConfigMap and Secret
-3. Storage (PV + PVC)
-4. Deployments (MongoDB, backend, frontend)
-5. Services
-6. Ingress
+3. Deployments (backend, frontend)
+4. Services
+5. Ingress
 
 This keeps object dependencies logical. For example, deployments can reference ConfigMap/Secret and PVC because those resources are already created.
 
@@ -50,13 +47,10 @@ This keeps object dependencies logical. For example, deployments can reference C
   Stores non-sensitive backend configuration such as `PORT` and `CLIENT_ORIGIN`.
 
 - `secrets/`
-  Contains secret template (`mongodb-secret.example.yaml`) for MongoDB credentials and backend connection string.
-
-- `volumes/`
-  Defines persistent storage for MongoDB data.
+	Contains secret template (`mongodb-secret.example.yaml`) for the backend MongoDB Atlas connection string.
 
 - `deployments/`
-  Defines desired pod state for frontend, backend, and MongoDB.
+	Defines desired pod state for frontend and backend.
 
 - `services/`
   Exposes each deployment internally (and frontend/backend via NodePort as configured).
@@ -72,7 +66,7 @@ This keeps object dependencies logical. For example, deployments can reference C
 2. Ingress path `/` forwards to `frontend-service:3000`
 3. Browser or server-side frontend calls `http://todo.local/api/...`
 4. Ingress path `/api` forwards to `backend-service:5000`
-5. Backend processes request and reads/writes MongoDB via `mongodb-service:27017`
+5. Backend processes request and reads/writes MongoDB Atlas using `MONGODB_URI`
 
 ### 4.2 Frontend API proxy behavior
 
@@ -91,7 +85,7 @@ In Kubernetes, frontend deployment explicitly sets:
 
 So proxy calls remain inside the cluster network.
 
-### 4.3 Backend and MongoDB interaction
+### 4.3 Backend and MongoDB Atlas interaction
 
 Backend deployment loads environment from:
 
@@ -102,27 +96,22 @@ Important values:
 
 1. `PORT=5000`
 2. `CLIENT_ORIGIN=http://frontend-service:3000`
-3. `MONGODB_URI=mongodb://<user>:<pass>@mongodb-service:27017/todo_app?authSource=admin`
+3. `MONGODB_URI=mongodb+srv://mekin:test@cluster0.ndaq9wx.mongodb.net/?appName=Cluster0`
 
 Backend startup:
 
 1. Reads env vars
-2. Connects to MongoDB using Mongoose
+3. Connects to MongoDB Atlas using Mongoose
 3. Exposes API endpoints such as `/api/health` and `/api/todos`
-
-MongoDB deployment gets root credentials from the same secret and mounts persistent data at `/data/db` using PVC `mongodb-pvc`.
 
 ## 5. Services and network exposure
 
 ### 5.1 Service types
 
-1. `mongodb-service` is `ClusterIP`
-	Only cluster-internal access is needed.
-
-2. `backend-service` is `NodePort`
+1. `backend-service` is `NodePort`
 	Exposed on nodes and also used by Ingress.
 
-3. `frontend-service` is `NodePort` with `nodePort: 30080`
+2. `frontend-service` is `NodePort` with `nodePort: 30080`
 	Exposed on nodes and used by Ingress for host/path routing.
 
 ### 5.2 Ingress rules
@@ -136,23 +125,7 @@ Paths:
 
 Ingress is the main HTTP entrypoint for clean URL routing.
 
-## 6. Storage model
-
-MongoDB persistence uses:
-
-1. StorageClass `mongodb-ebs-sc`
-	- Provisioner: `ebs.csi.aws.com`
-	- Binding mode: `WaitForFirstConsumer`
-	- Reclaim policy: `Retain`
-
-2. PVC `mongodb-pvc`
-	- Requested storage: `1Gi`
-	- Access mode: `ReadWriteOnce`
-	- Storage class: `mongodb-ebs-sc`
-
-This ensures MongoDB data is provisioned dynamically on AWS EBS in EKS rather than being tied to a node-local `hostPath` volume.
-
-## 7. Deployment and update lifecycle
+## 6. Deployment and update lifecycle
 
 ### 7.1 Initial deployment
 
@@ -173,7 +146,7 @@ kubectl rollout status deployment/frontend -n todo-app
 
 This gives controlled rolling updates for frontend and backend.
 
-## 8. CI/CD integration with Jenkins
+## 7. CI/CD integration with Jenkins
 
 The `Jenkinsfile` does the following Kubernetes-related steps:
 
@@ -186,7 +159,7 @@ The `Jenkinsfile` does the following Kubernetes-related steps:
 
 This means manifests define stable structure, while CI injects release-specific image tags.
 
-## 9. Operational checks
+## 8. Operational checks
 
 Use these commands to verify health after deploy.
 
@@ -197,15 +170,13 @@ kubectl get configmap backend-config -n todo-app -o yaml
 kubectl get secret mongodb-secret -n todo-app -o yaml
 kubectl logs deployment/backend -n todo-app --tail=100
 kubectl logs deployment/frontend -n todo-app --tail=100
-kubectl logs deployment/mongodb -n todo-app --tail=100
 kubectl describe pod -n todo-app
 ```
 
-## 10. Common failure points and fixes
+## 9. Common failure points and fixes
 
-1. Backend cannot connect to MongoDB
+1. Backend cannot connect to MongoDB Atlas
 	- Check `mongodb-secret` values and URI format
-	- Verify MongoDB pod is running and service name is `mongodb-service`
 
 2. Ingress routes not working
 	- Confirm ingress controller is installed in cluster
@@ -215,25 +186,20 @@ kubectl describe pod -n todo-app
 	- Verify frontend env includes `BACKEND_INTERNAL_URL=http://backend-service:5000`
 	- Check backend service and deployment are healthy
 
-4. MongoDB data not persisting
-	- Check PVC is bound
-	- Confirm the AWS EBS CSI driver is installed and the `mongodb-ebs-sc` StorageClass exists
-
-5. Rollout stuck in CI
+4. Rollout stuck in CI
 	- Run `kubectl describe deployment/<name> -n todo-app`
 	- Check image tag exists in registry and image pull succeeds
 
-## 11. Security and production notes
+## 10. Security and production notes
 
-1. `mongodb-secret.example.yaml` is a template only. Replace with real secret values.
-2. Avoid `hostPath` for production; use proper dynamic storage class.
-3. Consider `ClusterIP` for backend service when all external traffic goes through Ingress.
-4. Add probes (`readinessProbe`, `livenessProbe`) to all deployments.
-5. Add resource quotas, network policies, and pod security settings for harder isolation.
+1. `mongodb-secret.example.yaml` contains the backend Atlas URI. Replace it with your own cluster URI if needed.
+2. Consider `ClusterIP` for backend service when all external traffic goes through Ingress.
+3. Add probes (`readinessProbe`, `livenessProbe`) to all deployments.
+4. Add resource quotas, network policies, and pod security settings for harder isolation.
 
-## 12. Quick start checklist
+## 11. Quick start checklist
 
-1. Create/replace real MongoDB secret manifest values.
+1. Update the backend Atlas URI if needed.
 2. Push frontend/backend images to registry.
 3. Update deployment image repositories if needed.
 4. Apply manifests with `kubectl apply -k k8s/`.

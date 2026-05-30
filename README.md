@@ -1,4 +1,4 @@
-# Fullstack Todo App (Next.js + Express + MongoDB on Kubernetes)
+# Fullstack Todo App (Next.js + Express + MongoDB Atlas on Kubernetes)
 
 This guide shows how to run the app step by step by applying the Kubernetes deployment manifests in this repository.
 
@@ -37,35 +37,17 @@ docker push mekin2024/todo-frontend:latest
 
 ---
 
-## 3) Create a real MongoDB secret manifest
+## 3) Configure the backend secret
 
 A template exists at:
 
 - `k8s/secrets/mongodb-secret.example.yaml`
 
-Create a real secret file from the template:
-
-```bash
-cp k8s/secrets/mongodb-secret.example.yaml k8s/secrets/mongodb-secret.yaml
-```
-
-Edit `k8s/secrets/mongodb-secret.yaml` and replace placeholder values with your real credentials.
+The template already contains the MongoDB Atlas URI used by the backend. Update the value if you want to point at a different cluster.
 
 ---
 
-## 4) Update kustomization to use the real secret
-
-Open `k8s/kustomization.yaml` and replace:
-
-- `secrets/mongodb-secret.example.yaml`
-
-with:
-
-- `secrets/mongodb-secret.yaml`
-
----
-
-## 5) Apply all Kubernetes resources
+## 4) Apply all Kubernetes resources
 
 From project root:
 
@@ -75,7 +57,7 @@ kubectl apply -k k8s/
 
 ---
 
-## 6) Verify deployment status
+## 5) Verify deployment status
 
 ```bash
 kubectl get all -n todo-app
@@ -86,7 +68,7 @@ Wait until pods are `Running`.
 
 ---
 
-## 7) Access the app
+## 6) Access the app
 
 The frontend Service is exposed as `NodePort` `30080` in `k8s/services/frontend-service.yaml`.
 

@@ -9,17 +9,12 @@ resources:
   - namespace/todo-namespace.yaml
   # Non-sensitive app settings for backend container.
   - configmaps/backend-configmap.yaml
-  # Secret template used by backend and MongoDB.
+  # Secret template used by the backend to connect to MongoDB Atlas.
   - secrets/mongodb-secret.example.yaml
-  # Storage primitives used by MongoDB stateful data.
-  - volumes/mongodb-storageclass.yaml
-  - volumes/mongodb-pvc.yaml
   # Workloads.
-  - deployments/mongodb-deployment.yaml
   - deployments/backend-deployment.yaml
   - deployments/frontend-deployment.yaml
   # Service discovery and internal/external exposure.
-  - services/mongodb-service.yaml
   - services/backend-service.yaml
   - services/frontend-service.yaml
   # HTTP entrypoint with host/path routing.
