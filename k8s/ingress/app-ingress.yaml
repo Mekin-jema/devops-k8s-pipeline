@@ -9,7 +9,7 @@ metadata:
 spec:
   ingressClassName: alb
   rules:
-    - host: mekinjemal.live
+    - host: k8s.mekinjemal.live
       http:
         paths:
           - path: /api
