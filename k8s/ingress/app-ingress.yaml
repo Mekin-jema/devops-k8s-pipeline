@@ -9,7 +9,7 @@ metadata:
 spec:
   ingressClassName: alb
   rules:
-    - host: todo.yourdomain.com
+    - host: mekinjemal.live
       http:
         paths:
           - path: /api
