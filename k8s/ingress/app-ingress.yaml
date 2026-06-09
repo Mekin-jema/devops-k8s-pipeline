@@ -6,6 +6,13 @@ metadata:
   annotations:
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
+
+    # 🔐 HTTPS CONFIG
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
+
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:eu-north-1:982529430049:certificate/9379f5b8-761b-4ae7-84cf-b00bbadba8f2
+
+    alb.ingress.kubernetes.io/ssl-redirect: '443'
 spec:
   ingressClassName: alb
   rules:
@@ -19,6 +26,7 @@ spec:
                 name: backend-service
                 port:
                   number: 5000
+
           - path: /
             pathType: Prefix
             backend:
